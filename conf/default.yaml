@@ -1,0 +1,49 @@
+# This section defines all your connection details using a token.
+# At least the domain is required. Username and API token can also be entered when executing the script.
+Connection:
+    Domain: https://example.atlassian.net
+    Username: example@address.com
+    #API Token: 
+
+# This section defines what you are searching for.
+# You must at least define one project key or a filter. If the project key is defined, the filter will be ignored.
+Search Criteria:
+    # Specify a list of projects instead of using a filter.
+    # The filter will be ignored if this is activated (not commented out).
+    #Projects:
+    #    - PROJECT
+    # Restrict the search result to the given issue types.
+    # This might be useful when not using a dedicated filter.
+    #Issue Types:
+    #    - Story
+    #    - Task
+    #    - Bug
+    # The following filter will be applied.
+    Filter: My Example Filter
+    # Exclude issues created before the following date
+    Exclude Created Date: 2022-01-01
+    # Exclude issues resolved before the following date
+    Exclude Resolved Date: 2023-01-01
+    # Define the maximum amount of returned search results
+    Max Results: 200
+
+# Describe the workflow. Each step can be mapped to either a single JIRA
+# status, or a list of statuses that will be treated as equivalent
+Workflow:
+    Backlog:
+        - To Do
+        - Open
+    In Progress:
+        - In Progress
+    Done:
+        - Done
+        - Closed
+
+# Map field names to additional attributes to extract
+Custom Fields:
+    Bottle Size: customfield_10055
+
+# Additional settings
+Misc:
+    Decimal Separator: Comma # Choose between 'Comma' and 'Point'
+    Time Zone: Europe/Berlin # Not used yet 
