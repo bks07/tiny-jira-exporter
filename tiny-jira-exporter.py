@@ -30,13 +30,13 @@ def parse_yaml_file(file_location:str=None) -> dict:
         config_data["username"] = data["Connection"]["Username"]
     else:
         # If not defined in YAML file, prompt for username
-        config["username"] = input("Enter your Jira username: ")
+        config_data["username"] = input("Enter your Jira username: ")
     
     if "API Token" in data["Connection"]:
         config_data["api_token"] = data["Connection"]["API Token"]
     else:
         # If not defined in YAML file, prompt for API token
-        config["api_token"] = input("Enter your Jira API token: ")
+        config_data["api_token"] = input("Enter your Jira API token: ")
 
     # Set up the JQL query to retrieve the right issues
     if "Projects" in data["Search Criteria"] and len(data["Search Criteria"]["Projects"]) > 0:
