@@ -14,8 +14,13 @@ class ExporterConfig:
     YAML__SEARCH_CRITERIA__MAX_RESULTS = "Max Results"
     YAML__WORKFLOW = "Workflow" 
     YAML__CUSTOM_FIELDS = "Custom Fields"
+    YAML__MANDATORY = "Additional Mandatory"
+    YAML__MANDATORY_FLAGGED = "Flagged Field ID"
     YAML__MISC = "Misc"
+    YAML__MISC__STATUS_CATEGORY_PREFIX = "Status Category Prefix"
+    YAML__MISC__CUSTOM_FIELD_PREFIX = "Custom Field Prefix"
     YAML__MISC__DECIMAL_SEPARATOR = "Decimal Separator"
+    YAML__MISC__TIME_ZONE = "Time Zone"
     
     DECIMAL_SEPARATOR_POINT = "Point"
     DECIMAL_SEPARATOR_COMMA = "Comma"
@@ -30,7 +35,11 @@ class ExporterConfig:
         self._status_categories = []
         self._status_category_mapping = {}
         self._custom_fields = {}
-        self._decimal_separator = self.DECIMAL_SEPARATOR_COMMA
+        self._field_id_flagged = ""
+        self._custom_field_prefix = ""
+        self._status_category_prefix = ""
+        self._decimal_separator = self.DECIMAL_SEPARATOR_COMMA # cannot be empty
+        self._time_zone = ""
 
         self._load_yaml_file(yaml_file_location)
 
@@ -76,7 +85,7 @@ class ExporterConfig:
     def get_status_category_from_status(self, status:str):
         if status not in self._status_category_mapping:
             raise ValueError("Unable to get status category. Status not defined.")
-        return self._status_category_mapping[status]
+        return self._status_category_mapping[status] # Add 'Category:' as prefix so its not confused with other fields
      
     def get_status_category_mapping(self) -> dict:
         return self._status_category_mapping
@@ -92,13 +101,36 @@ class ExporterConfig:
             raise ValueError("Custom field does not exist")
         return self._custom_fields[custom_field_name]
     
+    def get_field_id_flagged(self) -> str:
+        return self._field_id_flagged
+
+    def get_custom_field_prefix(self) -> str:
+        return self._custom_field_prefix
+
+    def get_status_category_prefix(self) -> str:
+        return self._status_category_prefix
+    
     def get_decimal_separator(self) -> str:
         return self._decimal_separator
+    
+    def get_time_zone(self) -> str:
+        return self._time_zone
 
     """ Helper methods.
     """
 
     def _load_yaml_file(self, file_location:str):
+        """...
+
+        Args:
+            ...: ...
+
+        Returns:
+            ...
+
+        Raises:
+            ...: ...
+        """
         # Open the YAML file in read mode
         with open(file_location, "r") as file:
             # Parse the contents using safe_load()
@@ -149,28 +181,60 @@ class ExporterConfig:
         if self.YAML__SEARCH_CRITERIA__MAX_RESULTS in data[self.YAML__SEARCH_CRITERIA]:
             self._max_results = data[self.YAML__SEARCH_CRITERIA][self.YAML__SEARCH_CRITERIA__MAX_RESULTS]
 
-        # Set up all workflow-related information
-        if self.YAML__WORKFLOW in data:
-            self._status_categories = []
-            for status_category in data[self.YAML__WORKFLOW]:
-                self._status_categories.append(status_category)
-                for status in data[self.YAML__WORKFLOW][status_category]:
-                    self._status_category_mapping[status] = status_category
-            
-
         # Set up all defined custom fields
         if self.YAML__CUSTOM_FIELDS in data:
             self._custom_fields = data[self.YAML__CUSTOM_FIELDS]
 
+        if self.YAML__MANDATORY not in data:
+            raise ValueError("Mandatory fields missing in YAML file.")
+
+        if self.YAML__MANDATORY_FLAGGED not in data[self.YAML__MANDATORY] or data[self.YAML__MANDATORY][self.YAML__MANDATORY_FLAGGED] == "":
+            raise ValueError("Flagged field ID not defined in YAML file.")
+        self._field_id_flagged = data[self.YAML__MANDATORY][self.YAML__MANDATORY_FLAGGED]
+
         if self.YAML__MISC in data:
-            if self.YAML__MISC__DECIMAL_SEPARATOR in data[self.YAML__MISC] \
-                and data[self.YAML__MISC][self.YAML__MISC__DECIMAL_SEPARATOR] == self.DECIMAL_SEPARATOR_POINT:
-                self._decimal_separator = self.DECIMAL_SEPARATOR_POINT
+            if self.YAML__MISC__CUSTOM_FIELD_PREFIX in data[self.YAML__MISC]:
+                self._custom_field_prefix = data[self.YAML__MISC][self.YAML__MISC__CUSTOM_FIELD_PREFIX]
+            
+            if self.YAML__MISC__STATUS_CATEGORY_PREFIX in data[self.YAML__MISC]:
+                self._status_category_prefix = data[self.YAML__MISC][self.YAML__MISC__STATUS_CATEGORY_PREFIX]
+
+            if self.YAML__MISC__DECIMAL_SEPARATOR in data[self.YAML__MISC]:
+                match data[self.YAML__MISC][self.YAML__MISC__DECIMAL_SEPARATOR]:
+                    case self.DECIMAL_SEPARATOR_POINT:
+                        self._decimal_separator = self.DECIMAL_SEPARATOR_POINT
+                    case _:
+                        self._decimal_separator = self.DECIMAL_SEPARATOR_COMMA
+            
+            if self.YAML__MISC__TIME_ZONE in data[self.YAML__MISC]:
+                self._time_zone = data[self.YAML__MISC][self.YAML__MISC__TIME_ZONE]
+
+        # Set up all workflow-related information.
+        # This must be done at the very end since it requires
+        # the misc variable 'category prefix'.
+        if self.YAML__WORKFLOW in data:
+            self._status_categories = []
+            for status_category in data[self.YAML__WORKFLOW]:
+                prefixed_status_category = self.get_status_category_prefix() + status_category
+                self._status_categories.append(prefixed_status_category)
+                for status in data[self.YAML__WORKFLOW][status_category]:
+                    self._status_category_mapping[status] = prefixed_status_category
 
         return None
 
 
     def _issue_type_jql_string(self, data:dict) -> str:
+        """...
+
+        Args:
+            ...: ...
+
+        Returns:
+            ...
+
+        Raises:
+            ...: ...
+        """
         jql_query = ""
         if self.YAML__SEARCH_CRITERIA in data \
             and self.YAML__SEARCH_CRITERIA__ISSUE_TYPES in data[self.YAML__SEARCH_CRITERIA] \

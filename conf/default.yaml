@@ -30,20 +30,26 @@ Search Criteria:
 # Describe the workflow. Each step can be mapped to either a single JIRA
 # status, or a list of statuses that will be treated as equivalent
 Workflow:
-    Backlog:
-        - To Do
+    backlog: # A category for the given status
+        - To Do # A status as defined inside Jira
         - Open
-    In Progress:
+    in-progress:
         - In Progress
-    Done:
+    done:
         - Done
         - Closed
 
 # Map field names to additional attributes to extract
 Custom Fields:
-    Bottle Size: customfield_10055
+    story-points: customfield_10028
 
-# Additional settings
+# Mandatory properties to define
+Additional Mandatory:
+    Flagged Field ID: customfield_10021 # Make sure that this is the correct id for the custom field 'Flagged'
+
+# Additional settings that are optional
 Misc:
+    Status Category Prefix: "category::" # Recommended to avoid confusion whith other fields
+    Custom Field Prefix: "field::" # Recommended to avoid confusion with other fields
     Decimal Separator: Comma # Choose between 'Comma' and 'Point'
     Time Zone: Europe/Berlin # Not used yet 
