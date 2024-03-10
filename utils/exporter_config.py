@@ -156,7 +156,7 @@ class ExporterConfig:
             jql_query = "project IN("
             for project_key in data[self.YAML__SEARCH_CRITERIA][self.YAML__SEARCH_CRITERIA__PROJECTS]:
                 jql_query += project_key + ", "
-            jql_query = jql_query[:-2]
+            jql_query = jql_query[:-2] + ")"
 
             jql_query += self._issue_type_jql_string(data)
 

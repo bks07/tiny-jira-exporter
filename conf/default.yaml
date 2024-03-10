@@ -20,9 +20,9 @@ Search Criteria:
     #    - Bug
     # The following filter will be applied.
     Filter: My Example Filter
-    # Exclude issues created before the following date
+    # Exclude issues created before the following date, YYYY-MM-DD
     Exclude Created Date: 2022-01-01
-    # Exclude issues resolved before the following date
+    # Exclude issues resolved before the following date, YYYY-MM-DD
     Exclude Resolved Date: 2023-01-01
     # Define the maximum amount of returned search results
     Max Results: 200
