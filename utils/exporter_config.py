@@ -12,8 +12,11 @@ class ExporterConfig:
     YAML__SEARCH_CRITERIA__ISSUE_TYPES = "Issue Types"
     YAML__SEARCH_CRITERIA__FILTER = "Filter"
     YAML__SEARCH_CRITERIA__MAX_RESULTS = "Max Results"
-    YAML__WORKFLOW = "Workflow" 
-    YAML__CUSTOM_FIELDS = "Custom Fields"
+    YAML__SEARCH_CRITERIA__EXCLUDE_CREATED_DATE = "Exclude Created Date"
+    YAML__SEARCH_CRITERIA__EXCLUDE_RESOLVED_DATE = "Exclude Resolved Date"
+    YAML__DEFAULT_FIELDS = "Default Issue Fields"
+    YAML__CUSTOM_FIELDS = "Custom Issue Fields"
+    YAML__WORKFLOW = "Workflow"
     YAML__MANDATORY = "Additional Mandatory"
     YAML__MANDATORY_FLAGGED = "Flagged Field ID"
     YAML__MISC = "Misc"
@@ -34,7 +37,32 @@ class ExporterConfig:
         self._max_results = 100
         self._status_categories = []
         self._status_category_mapping = {}
+        self._default_fields = []
+        self._default_fields_internal_names = {
+            "issueID": "id",
+            "issueKey": "key",
+            "issueType": "issuetype",
+            "Summary": "summary",
+            "Reporter": "reporter",
+            "Assignee": "assignee",
+            "Summary": "summary",
+            "Status": "status",
+            "Resolution": "resolution",
+            "Priority": "priority",
+            "Created": "created",
+            "Resolved": "resolved",
+            "Labels": "labels",
+            "Flagged": "" # it's a custom field that must be defined inside the YAML config file
+        }
         self._custom_fields = {}
+        self._fields_to_fetch = [
+            "id", # always required and exported to CSV
+            "key", # always required and exported to CSV
+            "issuetype", # always required and exported to CSV
+            "status", # always required for workflow parser, optional output to CSV
+            "created", # always required for workflow parser, optional output to CSV
+            "summary" # always required for progress bar, optional output to CSV
+        ]
         self._field_id_flagged = ""
         self._custom_field_prefix = ""
         self._status_category_prefix = ""
@@ -90,12 +118,21 @@ class ExporterConfig:
     def get_status_category_mapping(self) -> dict:
         return self._status_category_mapping
 
+    def has_default_fields(self) -> bool:
+        return len(self._default_fields) > 0
+    
+    def get_default_fields(self) -> list:
+        return self._default_fields
+
     def has_custom_fields(self) -> bool:
         return len(self._custom_fields) > 0
 
     def get_custom_fields(self) -> dict:
         return self._custom_fields
-    
+
+    def get_fields_to_fetch(self) -> list:
+        return self._fields_to_fetch
+
     def get_custom_field_id(self, custom_field_name:str) -> str:
         if custom_field_name not in self._custom_fields:
             raise ValueError("Custom field does not exist")
@@ -136,6 +173,10 @@ class ExporterConfig:
             # Parse the contents using safe_load()
             data = yaml.safe_load(file)
         
+        # Check if mandatory fields are configured
+        if self.YAML__MANDATORY not in data:
+            raise ValueError("Mandatory fields missing in YAML file.")
+
         # Set up the Jira access data, this part of the configuration is optional.
         if self.YAML__CONNECTION in data:
             if self.YAML__CONNECTION__DOMAIN in data[self.YAML__CONNECTION]:
@@ -181,16 +222,29 @@ class ExporterConfig:
         if self.YAML__SEARCH_CRITERIA__MAX_RESULTS in data[self.YAML__SEARCH_CRITERIA]:
             self._max_results = data[self.YAML__SEARCH_CRITERIA][self.YAML__SEARCH_CRITERIA__MAX_RESULTS]
 
+        # Set et the additional field default field names
+        if self.YAML__DEFAULT_FIELDS in data:
+            for key, value in data[self.YAML__DEFAULT_FIELDS].items():
+                if isinstance(value, bool) and value == True:
+                    self._default_fields.append(key)
+                    match key:
+                        case "Flagged":
+                            if self.YAML__MANDATORY_FLAGGED not in data[self.YAML__MANDATORY] or data[self.YAML__MANDATORY][self.YAML__MANDATORY_FLAGGED] == "":
+                                raise ValueError("Flagged field ID not defined in YAML file.")
+                            self._field_id_flagged = data[self.YAML__MANDATORY][self.YAML__MANDATORY_FLAGGED]
+                            self._default_fields_internal_names[key] = self._field_id_flagged
+                            self._fields_to_fetch.append(self._field_id_flagged)
+                        case _:
+                            if key in self._default_fields_internal_names.keys() and key not in self._fields_to_fetch:
+                                self._fields_to_fetch.append(self._default_fields_internal_names[key])
+                            else:
+                                raise ValueError(f"Unknown default field: {key}")
+
         # Set up all defined custom fields
         if self.YAML__CUSTOM_FIELDS in data:
             self._custom_fields = data[self.YAML__CUSTOM_FIELDS]
-
-        if self.YAML__MANDATORY not in data:
-            raise ValueError("Mandatory fields missing in YAML file.")
-
-        if self.YAML__MANDATORY_FLAGGED not in data[self.YAML__MANDATORY] or data[self.YAML__MANDATORY][self.YAML__MANDATORY_FLAGGED] == "":
-            raise ValueError("Flagged field ID not defined in YAML file.")
-        self._field_id_flagged = data[self.YAML__MANDATORY][self.YAML__MANDATORY_FLAGGED]
+            for custom_field_id in self._custom_fields.values():
+                self._fields_to_fetch.append(custom_field_id)
 
         if self.YAML__MISC in data:
             if self.YAML__MISC__CUSTOM_FIELD_PREFIX in data[self.YAML__MISC]:

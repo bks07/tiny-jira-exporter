@@ -30,9 +30,8 @@ class IssueParser:
             jql_query = self._config.get_jql_query()
         if max_results == 0:
             max_results = self._config.get_max_results()
-        
-        self._issues = self._jira.search_issues(jql_query, maxResults=max_results)
 
+        self._issues = self._jira.search_issues(jql_query, fields=self._config.get_fields_to_fetch(), maxResults=max_results)
 
     def parse_issues(self) -> list:
         """...
@@ -56,36 +55,47 @@ class IssueParser:
             issue_status = self._parse_field_value(issue.fields.status.name)
             issue_creation_date = self._parse_field_value(self._transform_date(issue.fields.created))
             issue_summary = self._parse_field_value(issue.fields.summary)
-            issue_flagged = self._parse_flagged(eval("issue.fields." + self._config.get_field_id_flagged()))
             # Get the default values of an issue that are available for each export
 
             self._display_progress_bar(number_of_issues, i, issue_id, issue.key, issue_summary)
-            
-            issue_reporter_account_id = ""
-            if issue.fields.reporter != None:
-                issue_reporter_account_id = issue.fields.reporter.accountId
-
-            issue_assignee_account_id = ""
-            if issue.fields.assignee != None:
-                issue_assignee_account_id = issue.fields.assignee.accountId
 
             issue_data = {
                 "issueKey": self._parse_field_value(issue.key),
                 "issueID": issue_id,
                 "issueType": self._parse_field_value(issue.fields.issuetype.name),
-                "Reporter": self._parse_field_value(issue.fields.reporter),
-                "Reporter ID": self._parse_field_value(issue_reporter_account_id),
-                "Assignee": self._parse_field_value(issue.fields.assignee),
-                "Assignee ID": self._parse_field_value(issue_assignee_account_id),
-                "Summary": issue_summary,
-                "Status": issue_status,
-                "Resolution": self._parse_field_value(issue.fields.resolution),
-                "Created": issue_creation_date,
-                "Resolved": self._parse_resolution_date(issue.fields.resolutiondate),
-                "Flagged": issue_flagged,
-                "Labels": self._parse_labels(issue.fields.labels)
             }
             
+            for field_name in self._config.get_default_fields():
+                match field_name:
+                    case "Reporter":
+                        issue_reporter_account_id = ""
+                        if issue.fields.reporter != None:
+                            issue_reporter_account_id = issue.fields.reporter.accountId
+                        issue_data[field_name] = self._parse_field_value(issue.fields.reporter)
+                        issue_data[field_name + " ID"] = self._parse_field_value(issue_reporter_account_id)
+                    case "Assignee":
+                        issue_assignee_account_id = ""
+                        if issue.fields.assignee != None:
+                            issue_assignee_account_id = issue.fields.assignee.accountId
+                        issue_data[field_name] = self._parse_field_value(issue.fields.assignee)
+                        issue_data[field_name + " ID"] = self._parse_field_value(issue_assignee_account_id)
+                    case "Summary":
+                        issue_data[field_name] = issue_summary
+                    case "Status":
+                        issue_data[field_name] = issue_status
+                    case "Resolution":
+                        issue_data[field_name] = self._parse_field_value(issue.fields.resolution)
+                    case "Priority":
+                        issue_data[field_name] = self._parse_field_value(issue.fields.priority)
+                    case "Created":
+                        issue_data[field_name] = issue_creation_date
+                    case "Resolved":
+                        issue_data[field_name] = self._parse_resolution_date(issue.fields.resolutiondate)
+                    case "Flagged":
+                        issue_data[field_name] = self._parse_flagged(eval("issue.fields." + self._config.get_field_id_flagged()))
+                    case "Labels":
+                        issue_data[field_name] = self._parse_labels(issue.fields.labels)
+
             # Get the values of the extra custom fields defined in the YAML file
             if self._config.has_custom_fields():
                 for field_name in self._config.get_custom_fields().keys():

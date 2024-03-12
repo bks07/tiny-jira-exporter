@@ -55,7 +55,7 @@ def main():
         if config.get_domain() == "" or \
             config.get_username() == "" or \
             config.get_api_token() == "":
-            print("\nPlease enter the following  connection details manually.")
+            print("\nPlease enter the following connection details manually.")
             if config.get_domain() == "":
                 config.set_domain(input("Jira domain name (https://[yourname].atlassian.net): "))
 

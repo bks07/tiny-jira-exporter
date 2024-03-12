@@ -27,6 +27,23 @@ Search Criteria:
     # Define the maximum amount of returned search results
     Max Results: 200
 
+# Define which default fields should the export contain
+Default Issue Fields:
+    Reporter: !!bool Yes
+    Assignee: !!bool Yes
+    Summary: !!bool Yes
+    Status: !!bool Yes
+    Resolution: !!bool Yes
+    Priority: !!bool Yes
+    Created: !!bool Yes
+    Resolved: !!bool Yes
+    Flagged: !!bool Yes
+    Labels: !!bool Yes
+
+# Map field names to additional attributes to extract
+Custom Issue Fields:
+    story-points: customfield_10028
+
 # Describe the workflow. Each step can be mapped to either a single JIRA
 # status, or a list of statuses that will be treated as equivalent
 Workflow:
@@ -38,10 +55,6 @@ Workflow:
     done:
         - Done
         - Closed
-
-# Map field names to additional attributes to extract
-Custom Fields:
-    story-points: customfield_10028
 
 # Mandatory properties to define
 Additional Mandatory:
