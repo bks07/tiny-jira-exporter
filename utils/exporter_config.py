@@ -35,6 +35,8 @@ class ExporterConfig:
         self._jql_query = ""
         self._issue_types = []
         self._max_results = 100
+        self._exclude_created_date = ""
+        self._exclude_resolved_date = ""
         self._status_categories = []
         self._status_category_mapping = {}
         self._default_fields = []
@@ -191,8 +193,24 @@ class ExporterConfig:
         if self.YAML__SEARCH_CRITERIA not in data:
             raise ValueError("No search criteria defined in YAML config file.")
         
+        # Prepare the string for the date restrictions
+        jql_restrict_dates = ""
+        # Issues created after a certain date
+        if self.YAML__SEARCH_CRITERIA__EXCLUDE_CREATED_DATE in data[self.YAML__SEARCH_CRITERIA]:
+            exclude_created_date = data[self.YAML__SEARCH_CRITERIA][self.YAML__SEARCH_CRITERIA__EXCLUDE_CREATED_DATE]
+            if exclude_created_date != None and exclude_created_date != "":
+                 jql_restrict_dates += f" AND created >= '{exclude_created_date}'"
+        # Issues resolved after a certain date
+        if self.YAML__SEARCH_CRITERIA__EXCLUDE_RESOLVED_DATE in data[self.YAML__SEARCH_CRITERIA]:
+            exclude_resolved_date = data[self.YAML__SEARCH_CRITERIA][self.YAML__SEARCH_CRITERIA__EXCLUDE_RESOLVED_DATE]
+            if exclude_resolved_date != None and exclude_resolved_date != "":
+                 jql_restrict_dates += f" AND (resolved IS EMPTY OR resolved >= '{exclude_resolved_date}')"
+
         # Set up the JQL query to retrieve the right issues
-        if self.YAML__SEARCH_CRITERIA__PROJECTS in data[self.YAML__SEARCH_CRITERIA] and len(data[self.YAML__SEARCH_CRITERIA][self.YAML__SEARCH_CRITERIA__PROJECTS]) > 0:
+        if self.YAML__SEARCH_CRITERIA__FILTER in data[self.YAML__SEARCH_CRITERIA]:
+            # Creates a query where it selects the given filter
+            jql_query = "filter = '" + data[self.YAML__SEARCH_CRITERIA][self.YAML__SEARCH_CRITERIA__FILTER] + "'" 
+        elif self.YAML__SEARCH_CRITERIA__PROJECTS in data[self.YAML__SEARCH_CRITERIA] and len(data[self.YAML__SEARCH_CRITERIA][self.YAML__SEARCH_CRITERIA__PROJECTS]) > 0:
             # Creates a default JQL query like "project IN(PKEY1, PKEY2) ORDER BY issuekey ASC
             jql_query = "project IN("
             for project_key in data[self.YAML__SEARCH_CRITERIA][self.YAML__SEARCH_CRITERIA__PROJECTS]:
@@ -200,14 +218,8 @@ class ExporterConfig:
             jql_query = jql_query[:-2] + ")"
 
             jql_query += self._issue_type_jql_string(data)
-
-            jql_query += " ORDER BY issuekey ASC"
-        
-        elif self.YAML__SEARCH_CRITERIA__FILTER in data[self.YAML__SEARCH_CRITERIA]:
-            # Creates a query where it selects the given filter
-            jql_query = "filter = '" + data[self.YAML__SEARCH_CRITERIA][self.YAML__SEARCH_CRITERIA__FILTER] + "'"
-            jql_query += self._issue_type_jql_string(data)
-        
+            jql_query += jql_restrict_dates
+            jql_query += " ORDER BY issuekey ASC"       
         else:
             raise ValueError("Couldn't build JQL query. No project key or filter defined in YAML configuration file.")
         

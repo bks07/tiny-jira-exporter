@@ -8,23 +8,29 @@ Connection:
 # This section defines what you are searching for.
 # You must at least define one project key or a filter. If the project key is defined, the filter will be ignored.
 Search Criteria:
-    # Specify a list of projects instead of using a filter.
-    # The filter will be ignored if this is activated (not commented out).
-    #Projects:
-    #    - PROJECT
-    # Restrict the search result to the given issue types.
-    # This might be useful when not using a dedicated filter.
-    #Issue Types:
-    #    - Story
-    #    - Task
-    #    - Bug
-    # The following filter will be applied.
+    # The following filter that is defined inside Jira will be applied.
+    # Make sure that the user your are loggin in with this script can access the filter.
+    # Uncomment if you want to use this YAML file to define your filter by
+    # defining project keys, issue types, and dates.
     Filter: My Example Filter
+    # Specify a list of projects instead of using a filter.
+    # Obsolete if a filter is defined.
+    Projects:
+        - PROJECT
+    # Restrict the search result to the given issue types.
+    # Obsolete if a filter is defined.
+    Issue Types:
+        - Story
+        - Task
+        - Bug
     # Exclude issues created before the following date, YYYY-MM-DD
+    # Obsolete if a filter is defined.
     Exclude Created Date: 2022-01-01
     # Exclude issues resolved before the following date, YYYY-MM-DD
+    # Obsolete if a filter is defined.
     Exclude Resolved Date: 2023-01-01
-    # Define the maximum amount of returned search results
+    # Define the maximum amount of returned search results.
+    # If not set, the default value is 100.
     Max Results: 200
 
 # Define which default fields should the export contain
