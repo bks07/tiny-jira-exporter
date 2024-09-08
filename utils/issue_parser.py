@@ -1,37 +1,45 @@
 # coding: utf8
 
 from jira import JIRA
+import logging
 import math
 import chardet
 from .exporter_config import ExporterConfig
 
 class IssueParser:
-    def __init__(self, config:object):
+    def __init__(self, config:object, logger:object):
         self._config = config
+        self._logger = logger
         self._jira = JIRA(config.get_domain(), basic_auth=(config.get_username(), config.get_api_token()))
         self._issues = []
         self._parsed_data = []
 
 
     def fetch_issues(self, jql_query:str="", max_results:int=0):
-        """...
+        """
+        Connects to Jira and fetches the issues directly from Jira using a JQL query.
 
         Args:
-            ...: ...
+            jql_query (str)     : The JQL query that gets executed
+            max_results (int)   : The maximum number of issues that will be returned by the JQL query
 
         Returns:
-            ...
+            void
 
         Raises:
-            ...: ...
+            None
         """
         # Execute JQL query
         if jql_query == "":
             jql_query = self._config.get_jql_query()
+            self._logger.debug(f"Used JQL query: {jql_query}")
         if max_results == 0:
             max_results = self._config.get_max_results()
+            self._logger.debug(f"Max results: {max_results}")
 
         self._issues = self._jira.search_issues(jql_query, fields=self._config.get_fields_to_fetch(), maxResults=max_results)
+        self._logger.info(f"Issues successfully fetched: {len(self._issues)}")
+
 
     def parse_issues(self) -> list:
         """...
@@ -90,11 +98,11 @@ class IssueParser:
                     case "Created":
                         issue_data[field_name] = issue_creation_date
                     case "Resolved":
-                        issue_data[field_name] = self._parse_resolution_date(issue.fields.resolutiondate)
+                        issue_data[field_name] = self._parse_field_resolution_date(issue.fields.resolutiondate)
                     case "Flagged":
-                        issue_data[field_name] = self._parse_flagged(eval("issue.fields." + self._config.get_field_id_flagged()))
+                        issue_data[field_name] = self._parse_field_flagged(eval("issue.fields." + self._config.get_field_id_flagged()))
                     case "Labels":
-                        issue_data[field_name] = self._parse_labels(issue.fields.labels)
+                        issue_data[field_name] = self._parse_field_labels(issue.fields.labels)
 
             # Get the values of the extra custom fields defined in the YAML file
             if self._config.has_custom_fields():
@@ -102,12 +110,165 @@ class IssueParser:
                     issue_data[self._parse_field_value(self._config.get_custom_field_prefix() + field_name)] = self._parse_field_value(eval("issue.fields." + self._config.get_custom_field_id(field_name)))
 
             if self._config.has_workflow():
-                issue_data.update(self._parse_status_category_timestamps(issue_id, issue_status, issue_creation_date))
+                issue_data.update(self._parse_status_category_timestamps(issue_id, issue_creation_date))
             
             i += 1
             self._parsed_data.append(issue_data)
 
         return self._parsed_data
+
+
+    ############################
+    ### PARSE SPECIAL FIELDS ###
+    ############################
+
+
+    def _parse_field_labels(self, labels:list):
+        """...
+
+        Args:
+            ...: ...
+
+        Returns:
+            ...
+
+        Raises:
+            ...: ...
+        """
+        return_string = ""
+        if len(labels) > 0:
+           return_string = "'" + "'|'".join([x for x in labels]) + "'"
+        return self._parse_field_value(return_string)
+        
+
+    def _parse_field_resolution_date(self, date:str) -> str:
+        """...
+
+        Args:
+            ...: ...
+
+        Returns:
+            ...
+
+        Raises:
+            ...: ...
+        """
+        return_string = ""
+        if date != None and len(str(date)) > 0:
+            return_string = date
+        return self._parse_field_value(self._transform_date(return_string))
+
+        
+    def _parse_field_flagged(self, value):
+        """...
+
+        Args:
+            ...: ...
+
+        Returns:
+            ...
+
+        Raises:
+            ...: ...
+        """
+        return value is not None
+
+
+    ######################
+    ### PARSE WORKFLOW ###
+    ######################
+
+
+    def _parse_status_category_timestamps(self, issue_id, issue_creation_date) -> dict:
+        """...
+
+        Args:
+            ...: ...
+
+        Returns:
+            ...
+
+        Raises:
+            ...: ...
+        """
+        categories = {}
+        transitions = []
+        is_first_category = True
+        # Initiate the status category timestamps by adding all of them with value None
+        for status_category in self._config.get_status_categories():
+            if is_first_category:
+                # Every issue gets created with the very first status of the workflow
+                # Therefore, set the creation date for the very first category
+                categories[status_category] = issue_creation_date
+                is_first_category = False
+            else:
+                categories[status_category] = None
+
+        # Crawl through all changelogs of an issue
+        changelogs = self._jira.issue(issue_id, expand="changelog").changelog.histories
+        self._logger.debug(f"ISSUE {issue_id}")
+        for changelog in changelogs:
+            # Crawl through all items of the changelog
+            items = changelog.items
+            for item in items:
+                # Transitions are saved in the field status
+                if item.field == "status":                    
+                    # Add the transition information to a list first
+                    # since it is returned in descending sort order
+                    changelog_date = self._transform_date(changelog.created)
+                    transitions.append([item.fromString, item.toString, changelog_date])
+        
+        # Go through the transitions in reversed sort order
+        # so we start with the first transition
+        for transition in reversed(transitions):
+            categories = self._set_transition_dates(categories, transition[0], transition[1], transition[2])
+
+        return categories
+
+
+    def _set_transition_dates(self, category_dates:dict, from_status:str, to_status:str, date:str) -> dict:
+        """...
+
+        Args:
+            ...: ...
+
+        Returns:
+            ...
+
+        Raises:
+            ...: ...
+        """
+        category_from_status = self._config.get_status_category_from_status(from_status)
+        category_to_status = self._config.get_status_category_from_status(to_status)
+
+        list_of_categories = list(category_dates.keys())
+        category_from_status_index = list_of_categories.index(category_from_status)
+        category_to_status_index = list_of_categories.index(category_to_status)
+
+        self._logger.debug(f"###TRANSITION: {from_status}({category_from_status}) -> {to_status}({category_to_status})")
+        self._logger.debug(f"Date: {date}")
+        # Nothing to do here, this date had already been written
+        # since there is no change to the category
+        if category_from_status_index == category_to_status_index:
+            self._logger.debug(f"Same category!\n")
+            return category_dates
+        # The normal case, where the issue has been moved forward
+        elif category_from_status_index < category_to_status_index:
+            for category_index in range(category_from_status_index, category_to_status_index):
+                self._logger.debug(f"SET DATE: {category_index+1}")
+                category_dates[list_of_categories[category_index+1]] = date
+        # The case, when an issue has moved backward to a previous category
+        else:
+            for category_index in range(category_to_status_index, category_from_status_index):
+                self._logger.debug(f"DELETE DATE: {category_index+1}")
+                category_dates[list_of_categories[category_index+1]] = None
+
+        return category_dates
+
+
+    #########################
+    ### SUPPORT FUNCTIONS ###
+    #########################
 
 
     def _parse_field_value(self, value) -> str:
@@ -156,60 +317,6 @@ class IssueParser:
         return return_string
 
 
-    def _parse_status_category_timestamps(self, issue_id, issue_status, issue_creation_date) -> dict:
-        """...
-
-        Args:
-            ...: ...
-
-        Returns:
-            ...
-
-        Raises:
-            ...: ...
-        """
-        categories = {}
-        # Initiate the status category timestamps by adding all of them with value None
-        for status_category in self._config.get_status_categories():
-            categories[self._parse_field_value(status_category)] = None
-        
-        # Set the issue's creation date as a guess for the initial status
-        initial_category = self._parse_field_value(self._config.get_status_category_from_status(issue_status))
-        categories[initial_category] = issue_creation_date        
-
-        # Crawl through all changelogs of an issue
-        changelogs = self._jira.issue(issue_id, expand="changelog").changelog.histories
-        for changelog in changelogs:
-            # Crawl through all items of the changelog
-            items = changelog.items
-            for item in items:
-                # Transitions are saved in the field status
-                if item.field == "status":
-                    # Get the date and strip all unnecessary timezone information
-                    date = self._parse_field_value(self._transform_date(changelog.created))
-                    # Get the old and new status from Jira
-                    origin_status = self._parse_field_value(item.fromString)
-                    destination_status = self._parse_field_value(item.toString)
-                    # Get the old and new status categories based on the given status
-                    origin_category = self._config.get_status_category_from_status(origin_status)
-                    destination_category = self._config.get_status_category_from_status(destination_status)
-                    # Get the transition dates based on the categories
-                    origin_transition_date = categories[origin_category]
-                    destination_transition_date = categories[destination_category]
-                    
-                    # Only set a new timestamp when the category has changed
-                    if origin_category is not None and origin_category != destination_category:
-                        # Only set the timestamp for valid timestamps
-                        if destination_status in self._config.get_status_category_mapping().keys():
-                            if destination_transition_date is None or destination_transition_date < date:
-                                categories[self._parse_field_value(destination_category)] = issue_creation_date # always set the creation date to the from status to get the info for the very first status
-                                categories[self._parse_field_value(destination_category)] = date
-                        else:
-                            raise ValueError(f"Invalid status: '{destination_status}'; Date: '{date}'")
-                        
-        return categories
-
-
     def _transform_date(self, timestamp:str):
         """TODO: Must be implemented.
 
@@ -228,27 +335,20 @@ class IssueParser:
         #else:
         #    raise ValueError("Invalid timezone string!")
         return timestamp[0:10]
-    
-
-    def _parse_labels(self, labels:list):
-        return_string = ""
-        if len(labels) > 0:
-           return_string = "'" + "'|'".join([x for x in labels]) + "'"
-        return self._parse_field_value(return_string)
-
-
-    def _parse_resolution_date(self, date):
-        return_string = ""
-        if date != None and len(str(date)) > 0:
-            return_string = date
-        return self._parse_field_value(self._transform_date(return_string))
-
-        
-    def _parse_flagged(self, value):
-        return self._parse_field_value(str(value is not None))
 
 
     def _display_progress_bar(self, number_of_issues:int, iterator:int, issue_id:str, issue_key:str, issue_summary:str):
+        """...
+
+        Args:
+            ...: ...
+
+        Returns:
+            ...
+
+        Raises:
+            ...: ...
+        """
         percentage = math.ceil(iterator/number_of_issues*100)
 
         progress_bar_length = 10
