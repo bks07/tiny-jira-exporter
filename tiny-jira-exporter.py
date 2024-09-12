@@ -3,38 +3,12 @@
 import argparse
 import pandas as pd
 import logging
-from utils.issue_parser import IssueParser
-from utils.exporter_config import ExporterConfig
+
+from packages.issue_parser.issue_parser import IssueParser
+from packages.exporter_config.exporter_config import ExporterConfig
 
 DEFAULT_CONFIGURATION_FILE = "./conf/default.yaml"
 DEFAULT_OUTPUT_FILE = "./exports/default.csv"
-
-def write_csv_file(data:list, location:str=""):
-    """
-    Writes the output CSV file to the specified location.
-
-    Args:
-        data: A mixed list holding the information for the CSV file.
-        location: The string of the folder and file location of the CSV file.
-
-    Returns:
-        None.
-
-    Raises:
-        Exception: If there is an error while writing the file.
-    """
-    if location == None or location == "":
-        location = DEFAULT_OUTPUT_FILE
-
-    # Write data to csv file using the Pandas module
-    try:
-        df = pd.DataFrame.from_dict(data)
-        df.to_csv(location, index=False, sep=";", encoding="latin-1")
-    except Exception as e:
-        raise Exception("Error writing CSV file:", e)
-    
-    return None
-
 
 def main():
     # Create the parser for handing over arguments
@@ -73,7 +47,7 @@ def main():
         
         csv_output_file_location = args.output
         if csv_output_file_location == None or csv_output_file_location == "":
-            csv_output_file_location = "./export/default.csv"
+            csv_output_file_location = DEFAULT_OUTPUT_FILE
 
         print("Process YAML config file...")
         config = ExporterConfig(yaml_config_file_location, logger)
@@ -91,7 +65,6 @@ def main():
             
             if config.get_api_token() == "":
                 config.set_api_token(input("Enter your Jira API token: "))
-
         
         # Parse all received issues
         print("\nFetch issues from Jira...")
@@ -105,13 +78,13 @@ def main():
 
         # Write output file
         print(f"\nWrite CSV output file to '{csv_output_file_location}'.")
-        write_csv_file(output_data, csv_output_file_location)
+        df = pd.DataFrame.from_dict(output_data)
+        df.to_csv(csv_output_file_location, index=False, sep=";", encoding="latin-1")
         print(" ... done.")
 
     except Exception as error:
         print(f"Unexpected error: {error}")
-    
-    return None
+
 
 if __name__ == "__main__":
     main()

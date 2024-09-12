@@ -1,45 +1,73 @@
 # coding: utf8
 
 from jira import JIRA
-import logging
-import math
-import chardet
-from .exporter_config import ExporterConfig
+
+from packages.exporter_config.exporter_config import ExporterConfig
 
 class IssueParser:
-    def __init__(self, config:object, logger:object):
-        self._config = config
-        self._logger = logger
-        self._jira = JIRA(config.get_domain(), basic_auth=(config.get_username(), config.get_api_token()))
-        self._issues = []
-        self._parsed_data = []
+    """
+    Connects to Jira and fetches the issues directly from Jira using a JQL query.
+
+    :param config: The configuration originating from the YAML configuration file
+    :type config: (object)ExporterConfig
+    :param logger: The logger for debugging purposes
+    :type logger: object
+    """
+    def __init__(self, config: ExporterConfig, logger: object):
+        self._config: ExporterConfig = config
+        self._logger: object = logger
+        self._jira: JIRA = JIRA(config.get_domain(), basic_auth=(config.get_username(), config.get_api_token()))
+        self._issues: list = []
+        self._parsed_data: list = []
 
 
-    def fetch_issues(self, jql_query:str="", max_results:int=0):
+    @property # Read only
+    def config(self) -> object:
+        return self._config
+    
+    @property # Read only
+    def logger(self) -> object:
+        return self._logger
+    
+    @property # Read only
+    def jira(self) -> object:
+        return self._jira
+    
+    @property
+    def issues(self) -> list:
+        return self._issues
+
+    @issues.setter
+    def issues(self, value: list):
+        self._issues = value
+
+    def fetch_issues(self, jql_query: str = "", max_results: int = 0):
         """
         Connects to Jira and fetches the issues directly from Jira using a JQL query.
 
-        Args:
-            jql_query (str)     : The JQL query that gets executed
-            max_results (int)   : The maximum number of issues that will be returned by the JQL query
+        :param jql_query: The JQL query that gets executed
+        :type jql_query: str
+        :param max_results: The maximum number of issues that will be returned by the JQL query
+        :type max_results: int
 
-        Returns:
-            void
+        :raise None
 
-        Raises:
-            None
+        :return None
         """
         # Execute JQL query
         if jql_query == "":
-            jql_query = self._config.get_jql_query()
-            self._logger.debug(f"Used JQL query: {jql_query}")
+            jql_query = self.config.jql_query
+            self.logger.debug(f"Used JQL query: {jql_query}")
         if max_results == 0:
-            max_results = self._config.get_max_results()
-            self._logger.debug(f"Max results: {max_results}")
+            max_results = self.config.max_results
+            self.logger.debug(f"Max results: {max_results}")
 
-        self._issues = self._jira.search_issues(jql_query, fields=self._config.get_fields_to_fetch(), maxResults=max_results)
-        self._logger.info(f"Issues successfully fetched: {len(self._issues)}")
-
+        try:
+            self.issues = self._jira.search_issues(jql_query, fields=self.config.fields_to_fetch, maxResults=max_results)
+            self.logger.info(f"Issues successfully fetched: {len(self.issues)}")
+        except Exception as e:
+            self.logger.critical(f"Jira request failed with JQL: {jql_query} (Original message: {e})")
+            raise ValueError(f"Jira request failed with JQL: {jql_query})
 
     def parse_issues(self) -> list:
         """...
@@ -205,8 +233,8 @@ class IssueParser:
                 categories[status_category] = None
 
         # Crawl through all changelogs of an issue
-        changelogs = self._jira.issue(issue_id, expand="changelog").changelog.histories
-        self._logger.debug(f"ISSUE {issue_id}")
+        changelogs = self.jira.issue(issue_id, expand="changelog").changelog.histories
+        self.logger.debug(f"ISSUE {issue_id}")
         for changelog in changelogs:
             # Crawl through all items of the changelog
             items = changelog.items

@@ -18,7 +18,7 @@ Search Criteria:
     # Specify a list of projects instead of using a filter.
     # Obsolete if a filter is defined.
     Projects:
-        - PROJECT
+        - PROit JECT
     # Restrict the search result to the given issue types.
     # Obsolete if a filter is defined.
     Issue Types:
