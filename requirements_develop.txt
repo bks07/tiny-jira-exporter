@@ -1,0 +1,4 @@
+chardet==5.2.0
+jira==3.8.0
+pandas==2.2.1
+PyYAML==5.4.1
