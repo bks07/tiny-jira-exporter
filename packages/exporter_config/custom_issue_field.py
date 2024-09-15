@@ -1,23 +1,14 @@
-# coding: UTF-8
+# Coding: UTF-8
 
+import re
 from issue_field import IssueField
 
 class CustomIssueField(IssueField):
-    """
-    """
-    def __init__(self, name: str, internal_name: str, prefix: str = ""):
-        super().__init__(name, internal_name)
-        self._prefix = prefix
 
-    @property
-    def prefix(self) -> str:
-        return self._prefix
-    
-    @prefix.setter
-    def prefix(self, value: str):
-        self._prefix = value
+    CUSTOM_FIELD_ID_PATTERN = r"^customfield_\d+$"
 
-    def get_full_name(self) -> str:
-        """
-        """
-        return self.prefix + self.name
+    def __init__(self, name: str = "", id: str = ""):
+        if re.match(CustomIssueField.CUSTOM_FIELD_ID_PATTERN, id):
+            super().__init__(name, id)
+        else:
+            raise ValueError(f"The given ID '{id}' is invalid for a custom field. A custom field id must always follow the pattern 'customfield_XXXXX'.")

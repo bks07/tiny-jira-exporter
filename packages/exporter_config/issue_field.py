@@ -15,7 +15,7 @@ class IssueField:
     
     @name.setter
     def name(self, value: str):
-        self._name = NameError
+        self._name = value
 
     @property
     def id(self) -> str:
@@ -26,5 +26,5 @@ class IssueField:
         self._id = value
 
     @abstractmethod
-    def parse_value(self, raw_value: object):
+    def parse_value(self, raw_value: object) -> str:
         pass
