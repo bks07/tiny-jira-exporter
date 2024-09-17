@@ -2,13 +2,13 @@
 
 class Workflow:
     def __init__(self, workflow: dict) -> None:
-        self._categories: list = []
-        self._status_category_mapping: dict = {}
+        self.__categories: list = []
+        self.__status_category_mapping: dict = {}
 
         for status_category in workflow:
-            self._categories.append(status_category)
+            self.__categories.append(status_category)
             for status in workflow[status_category]:
-                self._status_category_mapping[status] = status_category
+                self.__status_category_mapping[status] = status_category
 
 
     ##################
@@ -18,11 +18,11 @@ class Workflow:
 
     @property
     def statuses(self) -> list:
-        return list(self._status_category_mapping.keys())
+        return list(self.__status_category_mapping.keys())
 
     @property
     def categories(self) -> list:
-        return self._categories
+        return self.__categories
 
 
     ######################
@@ -33,7 +33,7 @@ class Workflow:
     def get_category_of_status(self, status:str):
         if status not in self.statuses:
             raise ValueError("Unable to get status category. Status not defined.")
-        return self._status_category_mapping[status] # Add 'Category:' as prefix so its not confused with other fields
+        return self.__status_category_mapping[status] # Add 'Category:' as prefix so its not confused with other fields
 
 
     def get_status_by_position(self, position: int) -> str:

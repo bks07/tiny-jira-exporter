@@ -38,11 +38,12 @@ Search Criteria:
 
 # Mandatory properties to define
 Mandatory:
+    Parent Field ID: customfield_10020 # Make sure that this is the correct id for the custom field 'Parent'
     Flagged Field ID: customfield_10021 # Make sure that this is the correct id for the custom field 'Flagged'
     Decimal Separator: Comma # Choose between 'Comma' and 'Point'
 
-# Define which default fields should the export contain
-Default Issue Fields:
+# Define which standard fields should the export contain
+Standard Issue Fields:
     Reporter: !!bool Yes
     Assignee: !!bool Yes
     Summary: !!bool Yes
@@ -51,6 +52,7 @@ Default Issue Fields:
     Priority: !!bool Yes
     Created: !!bool Yes
     Resolved: !!bool Yes
+    Parent: !!bool Yes
     Flagged: !!bool Yes
     Labels: !!bool Yes
 

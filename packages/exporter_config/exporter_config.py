@@ -2,7 +2,6 @@
 
 import datetime
 import yaml
-import re
 
 from issue_field import IssueField
 from custom_issue_field import CustomIssueField
@@ -31,40 +30,46 @@ class ExporterConfig:
     YAML__SEARCH_CRITERIA__MAX_RESULTS = "Max Results"
     YAML__SEARCH_CRITERIA__EXCLUDE_CREATED_DATE = "Exclude Created Date"
     YAML__SEARCH_CRITERIA__EXCLUDE_RESOLVED_DATE = "Exclude Resolved Date"
-    YAML__DEFAULT_FIELDS = "Default Issue Fields"
+    YAML__STANDARD_FIELDS = "Standard Issue Fields"
     YAML__CUSTOM_FIELDS = "Custom Issue Fields"
     YAML__WORKFLOW = "Workflow"
     YAML__MANDATORY = "Mandatory"
+    YAML__MANDATORY__PARENT = "Parent Field ID"
     YAML__MANDATORY__FLAGGED = "Flagged Field ID"
     YAML__MANDATORY__DECIMAL_SEPARATOR = "Decimal Separator"
     YAML__MISC = "Misc"
-    YAML__MISC__STATUS_CATEGORY_PREFIX = "Status Category Prefix"
+    YAML__MISC__STANDARD_FIELD_PREFIX = "Standard Field Prefix"
     YAML__MISC__CUSTOM_FIELD_PREFIX = "Custom Field Prefix"
+    YAML__MISC__STATUS_CATEGORY_PREFIX = "Status Category Prefix"
     YAML__MISC__TIME_ZONE = "Time Zone"
     
+    ISSUE_FIELD_NAME_PARENT = "Parent"
+    ISSUE_FIELD_NAME_FLAGGED = "Flagged"
+
     DECIMAL_SEPARATOR_POINT = "Point"
     DECIMAL_SEPARATOR_COMMA = "Comma"
 
-    CUSTOM_FIELD_PATTERN = r"^customfield_\d+$"
-
     def __init__(self, yaml_file_location: str, logger: object):
-        self._logger = logger
+        self.__logger = logger
         
         # Porperties for Jira connection
-        self._domain: str = ""
-        self._username: str = ""
-        self._api_token: str = ""
+        self.__domain: str = ""
+        self.__username: str = ""
+        self.__api_token: str = ""
 
         # Properties for JQL request
-        self._jql_query: str = ""
-        self._max_results: int = 100
+        self.__jql_query: str = ""
+        self.__max_results: int = 100
 
-        # Properties for default field export
-        self._standard_fields: list = []
-        self._standard_fields_internal_names: dict = {
+        # Properties for issue field export
+        self.__fields_to_fetch: list = []
+        self.__default_fields = {
+            # Always show in csv export
             "issueID": "id",
             "issueKey": "key",
-            "issueType": "issuetype",
+            "issueType": "issuetype"
+        }
+        self.__standard_fields: dict = {
             "Summary": "summary",
             "Reporter": "reporter",
             "Assignee": "assignee",
@@ -74,34 +79,23 @@ class ExporterConfig:
             "Priority": "priority",
             "Created": "created",
             "Resolved": "resolved",
+            self.ISSUE_FIELD_NAME_PARENT: "", # it's a custom field that must be defined inside the YAML config file
             "Labels": "labels",
-            "Flagged": "" # it's a custom field that must be defined inside the YAML config file
+            self.ISSUE_FIELD_NAME_FLAGGED: "" # it's a custom field that must be defined inside the YAML config file
         }
-        self._custom_field_parent: CustomIssueFieldParent = None
-        self._custom_field_flagged: CustomIssueFieldFlagged = None
-
-        # Custom field export
-        self._custom_field_prefix: str = ""
-
-        # List of all fields that should be included in the export
-        self._fields_to_fetch: list = [
-            IssueField("issueID", "id"), # always required and exported to CSV
-            IssueField("issueKey", "key"), # always required and exported to CSV
-            IssueField("issuetype", "issueType"), # always required and exported to CSV
-            IssueField("Status", "status"), # always required for workflow parser, optional output to CSV
-            IssueField("Created", "created"), # always required for workflow parser, optional output to CSV
-            IssueField("Summary", "summary") # always required for progress bar, optional output to CSV
-        ]
+        self.__standard_field_prefix: str = ""
+        self.__custom_field_prefix: str = ""
 
         # Workflow timestamp export
-        self._workflow: Workflow = None
+        self.__workflow: Workflow = None
+        self.__status_category_prefix: str = ""
 
         # Other properties
-        self._decimal_separator: str = ExporterConfig.DECIMAL_SEPARATOR_COMMA # cannot be empty
-        self._time_zone: str = ""
+        self.__decimal_separator: str = ExporterConfig.DECIMAL_SEPARATOR_COMMA # cannot be empty
+        self.__time_zone: str = ""
 
         # Parse YAML config file to populate all properties
-        self._load_yaml_file(yaml_file_location)
+        self.__load_yaml_file(yaml_file_location)
 
     
     ##################
@@ -111,148 +105,85 @@ class ExporterConfig:
 
     @property # Read only
     def logger(self) -> object:
-        return self._logger
+        return self.__logger
 
     # Porperties for Jira connection
 
     @property
     def domain(self) -> str:
-        return self._domain
+        return self.__domain
 
     @domain.setter
     def domain(self, value: str):
-        self._domain = value
+        self.__domain = value
 
     @property
     def username(self) -> str:
-        return self._username
+        return self.__username
 
     @username.setter
     def username(self, value: str):
-        self._username = value
+        self.__username = value
 
     @property
     def api_token(self) -> str:
-        return self._api_token
+        return self.__api_token
 
     @api_token.setter
     def api_token(self, value: str):
-        self._api_token = value
+        self.__api_token = value
 
     # Properties for JQL request
 
     @property
     def jql_query(self) -> str:
-        return self._jql_query
-
-    @jql_query.setter
-    def jql_query(self, value: str):
-        self._jql_query = value
-
-    @property
-    def exclude_resolved_date(self) -> str:
-        return self._exclude_resolved_date
-    
-    @exclude_resolved_date.setter
-    def exclude_resolved_date(self, value: str):
-        if bool(datetime.datetime.strptime(value, "%Y-%m-%d")):
-            self._exclude_resolved_date = value
-        else:
-            raise ValueError("Incorrect date format for exclude resolved date: {value}")
+        return self.__jql_query
 
     @property
     def max_results(self) -> int:
-        return self._max_results
-    
-    @max_results.setter
-    def max_results(self, value: int):
-        self._max_results = value
+        return self.__max_results
 
-    # Properties for default field export
-
-    @property
-    def default_fields(self) -> list:
-        return self._default_fields
-
-    @default_fields.setter
-    def default_fields(self, value: list):
-        self._default_fields = value
-    
-    @property # read only
-    def default_fields_internal_names(self) -> dict:
-        return self._default_fields_internal_names
-
-    @property
-    def field_id_flagged(self) -> str:
-        return self._field_id_flagged
-
-    @field_id_flagged.setter
-    def field_id_flagged(self, value: str):
-        self._field_id_flagged = value
-
-    # Custom field export
-
-    @property
-    def custom_field_prefix(self) -> str:
-        return self._custom_field_prefix
-
-    @custom_field_prefix.setter
-    def custom_field_prefix(self, value: int):
-        self._custom_field_prefix = value
-
-    @property
-    def custom_fields(self) -> dict:
-        return self._custom_fields
-
-    @custom_fields.setter
-    def custom_fields(self, value: dict):
-        self._custom_fields = value
-
-    # List of all fields that should be included in the export
+    # Properties for issue field export
 
     @property
     def fields_to_fetch(self) -> list:
-        return self._fields_to_fetch
+        return self.__fields_to_fetch
 
-    @fields_to_fetch.setter
-    def fields_to_fetch(self, value: list):
-        self._fields_to_fetch = value
+    @property
+    def standard_field_flagged(self) -> CustomIssueFieldFlagged:
+        return self.__standard_field_flagged
+
+    @property
+    def standard_field_parent(self) -> CustomIssueFieldParent:
+        return self.__standard_field_parent
+
+    @property
+    def standard_field_prefix(self) -> str:
+        return self.__standard_field_prefix
+
+    @property
+    def custom_field_prefix(self) -> str:
+        return self.__custom_field_prefix
 
     # Workflow timestamp export
 
     @property
     def workflow(self) -> Workflow:
-        return self._workflow
-    
-    @workflow.setter
-    def workflow(self, value: Workflow):
-        self._workflow = value
+        return self.__workflow
 
     @property
     def status_category_prefix(self) -> str:
-        return self._status_category_prefix
+        return self.__status_category_prefix
     
-    @status_category_prefix.setter
-    def status_category_prefix(self, value: str):
-        self._status_category_prefix = value
-
     # Other properties
 
     @property
     def decimal_separator(self) -> str:
-        return self._decimal_separator
-
-    @decimal_separator.setter
-    def decimal_separator(self, value: str):
-        self._decimal_separator = value
+        return self.__decimal_separator
 
     @property
     def time_zone(self) -> str:
-        return self._time_zone
-
-    @time_zone.setter
-    def time_zone(self, value: str):
-        self._time_zone = value
+        return self.__time_zone
 
 
     ######################
@@ -261,15 +192,7 @@ class ExporterConfig:
 
 
     def has_workflow(self) -> bool:
-            return self.workflow is not None and self.workflow.numberOfStatuses() > 0
-    
-
-    def has_standard_fields(self) -> bool:
-        return len(self._standard_fields) > 0
-
-
-    def has_custom_fields(self) -> bool:
-        return len(self._custom_fields) > 0
+        return self.workflow is not None and self.workflow.numberOfStatuses() > 0
 
 
     ######################
@@ -277,7 +200,7 @@ class ExporterConfig:
     ######################
 
 
-    def _load_yaml_file(self, file_location: str):
+    def __load_yaml_file(self, file_location: str):
         """
         Loads the YAML config file from the given location.
 
@@ -297,89 +220,91 @@ class ExporterConfig:
 
         # Check if mandatory attributes are configured
         if ExporterConfig.YAML__MANDATORY not in data:
-            raise ValueError("Mandatory configuarion properties are missing in YAML file.")
+            raise ValueError("Mandatory configuration properties are missing in YAML file.")
 
         # Set up the Jira access data, this part of the configuration is optional.
         if ExporterConfig.YAML__CONNECTION in data:
             if ExporterConfig.YAML__CONNECTION__DOMAIN in data[ExporterConfig.YAML__CONNECTION]:
-                self.domain = data[ExporterConfig.YAML__CONNECTION][ExporterConfig.YAML__CONNECTION__DOMAIN]
+                self.__domain = data[ExporterConfig.YAML__CONNECTION][ExporterConfig.YAML__CONNECTION__DOMAIN]
 
             if ExporterConfig.YAML__CONNECTION__USERNAME in data[ExporterConfig.YAML__CONNECTION]:
-                self.username = data[ExporterConfig.YAML__CONNECTION][ExporterConfig.YAML__CONNECTION__USERNAME]
+                self.__username = data[ExporterConfig.YAML__CONNECTION][ExporterConfig.YAML__CONNECTION__USERNAME]
             
             if ExporterConfig.YAML__CONNECTION__API_TOKEN in data[ExporterConfig.YAML__CONNECTION]:
-                self.api_token = data[ExporterConfig.YAML__CONNECTION][ExporterConfig.YAML__CONNECTION__API_TOKEN]
+                self.__api_token = data[ExporterConfig.YAML__CONNECTION][ExporterConfig.YAML__CONNECTION__API_TOKEN]
         
 
         # Set up the JQL query to retrieve the right issues
         if ExporterConfig.YAML__SEARCH_CRITERIA__FILTER in data[ExporterConfig.YAML__SEARCH_CRITERIA]:
             # Creates a query where it selects the given filter
-            self.jql_query = "filter = '" + data[ExporterConfig.YAML__SEARCH_CRITERIA][ExporterConfig.YAML__SEARCH_CRITERIA__FILTER] + "'" 
+            self.__jql_query = "filter = '" + data[ExporterConfig.YAML__SEARCH_CRITERIA][ExporterConfig.YAML__SEARCH_CRITERIA__FILTER] + "'" 
         elif ExporterConfig.YAML__SEARCH_CRITERIA__PROJECTS in data[ExporterConfig.YAML__SEARCH_CRITERIA] and len(data[ExporterConfig.YAML__SEARCH_CRITERIA][ExporterConfig.YAML__SEARCH_CRITERIA__PROJECTS]) > 0:
             # Creates a default JQL query like "project IN(PKEY1, PKEY2) ORDER BY issuekey ASC
-            self.jql_query = self._jql_list_of_values("project", data[ExporterConfig.YAML__SEARCH_CRITERIA][ExporterConfig.YAML__SEARCH_CRITERIA__PROJECTS])
+            self.__jql_query = self.__jql_list_of_values("project", data[ExporterConfig.YAML__SEARCH_CRITERIA][ExporterConfig.YAML__SEARCH_CRITERIA__PROJECTS])
 
             if ExporterConfig.YAML__SEARCH_CRITERIA__ISSUE_TYPES in data[ExporterConfig.YAML__SEARCH_CRITERIA] and \
                 len(data[ExporterConfig.YAML__SEARCH_CRITERIA][ExporterConfig.YAML__SEARCH_CRITERIA__ISSUE_TYPES]) > 0:
-                self.jql_query += " AND " + self._jql_list_of_values("issuetype", data[ExporterConfig.YAML__SEARCH_CRITERIA][ExporterConfig.YAML__SEARCH_CRITERIA__ISSUE_TYPES])
+                self.__jql_query += " AND " + self.__jql_list_of_values("issuetype", data[ExporterConfig.YAML__SEARCH_CRITERIA][ExporterConfig.YAML__SEARCH_CRITERIA__ISSUE_TYPES])
             
             # Issues created after a certain date
             if ExporterConfig.YAML__SEARCH_CRITERIA__EXCLUDE_CREATED_DATE in data[ExporterConfig.YAML__SEARCH_CRITERIA]:
                 exclude_created_date = data[ExporterConfig.YAML__SEARCH_CRITERIA][ExporterConfig.YAML__SEARCH_CRITERIA__EXCLUDE_CREATED_DATE]
-                if self._check_date(exclude_created_date):
-                    self.jql_query += f" AND created >= '{exclude_created_date}'"
+                if self.__check_date(exclude_created_date):
+                    self.__jql_query += f" AND created >= '{exclude_created_date}'"
             # Issues resolved after a certain date
             if ExporterConfig.YAML__SEARCH_CRITERIA__EXCLUDE_RESOLVED_DATE in data[ExporterConfig.YAML__SEARCH_CRITERIA]:
                 exclude_resolved_date = data[ExporterConfig.YAML__SEARCH_CRITERIA][ExporterConfig.YAML__SEARCH_CRITERIA__EXCLUDE_RESOLVED_DATE]
-                if self._check_date(exclude_resolved_date):
-                    self.jql_query += f" AND (resolved IS EMPTY OR resolved >= '{exclude_resolved_date}')"
+                if self.__check_date(exclude_resolved_date):
+                    self.__jql_query += f" AND (resolved IS EMPTY OR resolved >= '{exclude_resolved_date}')"
 
-            self.jql_query += " ORDER BY issuekey ASC"       
+            self.__jql_query += " ORDER BY issuekey ASC"       
         else:
             raise ValueError("Couldn't build JQL query. No project key or filter defined in YAML configuration file.")
         
-        self._logger.debug(self.jql_query)
+        self.__logger.debug(self.__jql_query)
+
 
         # Define the maximum search results
         if ExporterConfig.YAML__SEARCH_CRITERIA__MAX_RESULTS in data[ExporterConfig.YAML__SEARCH_CRITERIA]:
-            self.max_results = data[ExporterConfig.YAML__SEARCH_CRITERIA][ExporterConfig.YAML__SEARCH_CRITERIA__MAX_RESULTS]
+            self.__max_results = data[ExporterConfig.YAML__SEARCH_CRITERIA][ExporterConfig.YAML__SEARCH_CRITERIA__MAX_RESULTS]
+
 
         # Ceck all mandatory attributes    
-        if self._check_mandatory_field(data, ExporterConfig.YAML__MANDATORY__DECIMAL_SEPARATOR):
+        if self.__check_mandatory_field(data, ExporterConfig.YAML__MANDATORY__DECIMAL_SEPARATOR):
             match data[ExporterConfig.YAML__MANDATORY][ExporterConfig.YAML__MANDATORY__DECIMAL_SEPARATOR]:
                 case ExporterConfig.DECIMAL_SEPARATOR_POINT:
-                    self.decimal_separator = ExporterConfig.DECIMAL_SEPARATOR_POINT
+                    self.__decimal_separator = ExporterConfig.DECIMAL_SEPARATOR_POINT
                 case ExporterConfig.DECIMAL_SEPARATOR_COMMA:
-                    self.decimal_separator = ExporterConfig.DECIMAL_SEPARATOR_COMMA
+                    self.__decimal_separator = ExporterConfig.DECIMAL_SEPARATOR_COMMA
                 case _:
                     raise ValueError(f"Please check the value for the attribute {ExporterConfig.YAML__MANDATORY} > {ExporterConfig.YAML__MANDATORY__DECIMAL_SEPARATOR}.")
 
-        if self._check_mandatory_field(data, ExporterConfig.YAML__MANDATORY__FLAGGED):
-            self.standard_field_flagged = CustomIssueFieldFlagged()
+        if self.__check_mandatory_field(data, ExporterConfig.YAML__MANDATORY__PARENT):
+           self.__standard_field_parent = CustomIssueFieldParent()
+
+        if self.__check_mandatory_field(data, ExporterConfig.YAML__MANDATORY__FLAGGED):
+            self.__standard_field_flagged = CustomIssueFieldFlagged()
         
-        #if self._check_mandatory_field(data, ExporterConfig.YAML__MANDATORY__PARENT):
-        #   self.standard_field_parent = CustomIssueFieldParent()
 
         # Set the additional field default field names
-        if ExporterConfig.YAML__DEFAULT_FIELDS in data:
-            for key, value in data[ExporterConfig.YAML__DEFAULT_FIELDS].items():
-                if isinstance(value, bool) and value == True:
-                    self.standard_issue_fields.append(key)
-                    match key:
-                        case "Flagged":
-                            self._default_fields_internal_names[key] = field_id_flagged
-                            self._fields_to_fetch.append(field_id_flagged)
+        if ExporterConfig.YAML__STANDARD_FIELDS in data:
+            for name, id in self.__standard_fields.items():
+                if name in self.__always_show_in_export or \
+                    (name in data[ExporterConfig.YAML__STANDARD_FIELDS] and \
+                    bool(data[ExporterConfig.YAML__STANDARD_FIELDS][name])):
+                    match name:
+                        case self.ISSUE_FIELD_NAME_PARENT:
+                            self.__fields_to_fetch.append(CustomIssueFieldParent(name, id))
+                        case self.ISSUE_FIELD_NAME_FLAGGED:
+                            self.__fields_to_fetch.append(CustomIssueFieldFlagged(name, id))
                         case _:
-                            if key in self._default_fields_internal_names.keys() and key not in self._fields_to_fetch:
-                                self.fields_to_fetch.append(self._default_fields_internal_names[key])
-                            else:
-                                raise ValueError(f"Unknown default field: {key}")
+                            self.fields_to_fetch.append(self._default_fields_internal_names[key])
 
         # Set up all defined custom fields
         if ExporterConfig.YAML__CUSTOM_FIELDS in data and isinstance(data[ExporterConfig.YAML__CUSTOM_FIELDS], dict):
             self.custom_fields = dict(data[ExporterConfig.YAML__CUSTOM_FIELDS])
             for custom_field_id in self._custom_fields.values():
-                self.fields_to_fetch.append(custom_field_id)
+                self.__fields_to_fetch.append(custom_field_id)
 
         if ExporterConfig.YAML__MISC in data:
             if ExporterConfig.YAML__MISC__CUSTOM_FIELD_PREFIX in data[ExporterConfig.YAML__MISC]:
@@ -391,11 +316,10 @@ class ExporterConfig:
             if ExporterConfig.YAML__MISC__TIME_ZONE in data[ExporterConfig.YAML__MISC]:
                 self.time_zone = data[ExporterConfig.YAML__MISC][ExporterConfig.YAML__MISC__TIME_ZONE]
 
+
         # Set up all workflow-related information.
-        # This must be done at the very end since it requires
-        # the misc variable 'category prefix'.
         if ExporterConfig.YAML__WORKFLOW in data and data[ExporterConfig.YAML__WORKFLOW] is not None:
-            self.workflow = Workflow(data[ExporterConfig.YAML__WORKFLOW])
+            self.__workflow = Workflow(data[ExporterConfig.YAML__WORKFLOW])
 
 
     #######################
@@ -403,7 +327,7 @@ class ExporterConfig:
     #######################
 
 
-    def _jql_list_of_values(self, issue_field: str, values: list) -> str:
+    def __jql_list_of_values(self, issue_field: str, values: list) -> str:
         """
         Builds the JQL string originating from a list list of values for a certain issue field.
 
@@ -423,7 +347,7 @@ class ExporterConfig:
         return jql_query
 
     # GET MANDATORIY VALUE
-    def _check_mandatory_field(self, data:dict, field:str):
+    def __check_mandatory_field(self, data:dict, field:str):
         """...
 
         Args:
@@ -442,7 +366,7 @@ class ExporterConfig:
             raise ValueError(f"Section '{ExporterConfig.YAML__MANDATORY}' is missing in YAML config file.")
 
 
-    def _check_date(self, date_string: str) -> bool:
+    def __check_date(self, date_string: str) -> bool:
         """...
         ...: ...
 
