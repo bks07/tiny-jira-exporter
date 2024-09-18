@@ -36,7 +36,7 @@ Search Criteria:
     # Also used when a filter is defined.
     Max Results: 200
 
-# Mandatory properties to define
+# Mandatory attributes to define
 Mandatory:
     Parent Field ID: customfield_10020 # Make sure that this is the correct id for the custom field 'Parent'
     Flagged Field ID: customfield_10021 # Make sure that this is the correct id for the custom field 'Flagged'
@@ -44,6 +44,7 @@ Mandatory:
 
 # Define which standard fields should the export contain
 Standard Issue Fields:
+    Issue Type: !!bool Yes
     Reporter: !!bool Yes
     Assignee: !!bool Yes
     Summary: !!bool Yes
@@ -75,5 +76,6 @@ Workflow:
 # Additional settings that are optional
 Misc:
     Status Category Prefix: "category::" # Recommended to avoid confusion whith other fields
-    Custom Field Prefix: "field::" # Recommended to avoid confusion with other fields
+    Standard Field Prefix: "std::" # Recommended to avoid confusion with other fields
+    Custom Field Prefix: "cust::" # Recommended to avoid confusion with other fields
     Time Zone: Europe/Berlin # Not used yet

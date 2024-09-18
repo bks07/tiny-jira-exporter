@@ -2,6 +2,7 @@
 
 import datetime
 import yaml
+import re
 
 from issue_field import IssueField
 from custom_issue_field import CustomIssueField
@@ -42,7 +43,19 @@ class ExporterConfig:
     YAML__MISC__CUSTOM_FIELD_PREFIX = "Custom Field Prefix"
     YAML__MISC__STATUS_CATEGORY_PREFIX = "Status Category Prefix"
     YAML__MISC__TIME_ZONE = "Time Zone"
-    
+
+    ISSUE_FIELD_NAME_ISSUE_KEY = "Issue Key"
+    ISSUE_FIELD_NAME_ISSUE_ID = "Issue ID"
+    ISSUE_FIELD_NAME_ISSUE_TYPE = "Issue Type"
+    ISSUE_FIELD_NAME_SUMMARY = "Summary"
+    ISSUE_FIELD_NAME_REPORTER = "Reporter"
+    ISSUE_FIELD_NAME_ASSIGNEE = "Assignee"
+    ISSUE_FIELD_NAME_STATUS = "Status"
+    ISSUE_FIELD_NAME_RESOLUTION = "Resolution"
+    ISSUE_FIELD_NAME_PRIORITY = "Priority"
+    ISSUE_FIELD_NAME_CREATED = "Created"
+    ISSUE_FIELD_NAME_RESOLVED = "Resolved"
+    ISSUE_FIELD_NAME_LABELS = "Labels"
     ISSUE_FIELD_NAME_PARENT = "Parent"
     ISSUE_FIELD_NAME_FLAGGED = "Flagged"
 
@@ -62,26 +75,21 @@ class ExporterConfig:
         self.__max_results: int = 100
 
         # Properties for issue field export
-        self.__fields_to_fetch: list = []
-        self.__default_fields = {
-            # Always show in csv export
-            "issueID": "id",
-            "issueKey": "key",
-            "issueType": "issuetype"
-        }
-        self.__standard_fields: dict = {
-            "Summary": "summary",
-            "Reporter": "reporter",
-            "Assignee": "assignee",
-            "Summary": "summary",
-            "Status": "status",
-            "Resolution": "resolution",
-            "Priority": "priority",
-            "Created": "created",
-            "Resolved": "resolved",
-            self.ISSUE_FIELD_NAME_PARENT: "", # it's a custom field that must be defined inside the YAML config file
-            "Labels": "labels",
-            self.ISSUE_FIELD_NAME_FLAGGED: "" # it's a custom field that must be defined inside the YAML config file
+        self.__issue_fields: dict = {
+            ExporterConfig.ISSUE_FIELD_NAME_ISSUE_KEY: IssueField(ExporterConfig.ISSUE_FIELD_NAME_ISSUE_KEY, "key", True, True),
+            ExporterConfig.ISSUE_FIELD_NAME_ISSUE_ID: IssueField(ExporterConfig.ISSUE_FIELD_NAME_ISSUE_ID, "id", True, True),
+            ExporterConfig.ISSUE_FIELD_NAME_ISSUE_TYPE: IssueField(ExporterConfig.ISSUE_FIELD_NAME_ISSUE_TYPE, "issuetype"),
+            ExporterConfig.ISSUE_FIELD_NAME_REPORTER: IssueField(ExporterConfig.ISSUE_FIELD_NAME_REPORTER, "reporter"),
+            ExporterConfig.ISSUE_FIELD_NAME_ASSIGNEE: IssueField(ExporterConfig.ISSUE_FIELD_NAME_ASSIGNEE, "assignee"),
+            ExporterConfig.ISSUE_FIELD_NAME_SUMMARY: IssueField(ExporterConfig.ISSUE_FIELD_NAME_SUMMARY, "summary"),
+            ExporterConfig.ISSUE_FIELD_NAME_STATUS: IssueField(ExporterConfig.ISSUE_FIELD_NAME_STATUS, "status"),
+            ExporterConfig.ISSUE_FIELD_NAME_RESOLUTION: IssueField(ExporterConfig.ISSUE_FIELD_NAME_RESOLUTION, "resolution"),
+            ExporterConfig.ISSUE_FIELD_NAME_PRIORITY: IssueField(ExporterConfig.ISSUE_FIELD_NAME_PRIORITY, "priority"),
+            ExporterConfig.ISSUE_FIELD_NAME_CREATED: IssueField(ExporterConfig.ISSUE_FIELD_NAME_CREATED, "created"),
+            ExporterConfig.ISSUE_FIELD_NAME_RESOLVED: IssueField(ExporterConfig.ISSUE_FIELD_NAME_RESOLVED, "resolved"),
+            ExporterConfig.ISSUE_FIELD_NAME_PARENT: CustomIssueFieldParent(), # It's a locked custom field that must be defined inside the YAML config file
+            ExporterConfig.ISSUE_FIELD_NAME_ASSIGNEE: IssueField(ExporterConfig.ISSUE_FIELD_NAME_ASSIGNEE, "assignee"),
+            ExporterConfig.ISSUE_FIELD_NAME_FLAGGED: CustomIssueFieldFlagged() # It's a locked custom field that must be defined inside the YAML config file
         }
         self.__standard_field_prefix: str = ""
         self.__custom_field_prefix: str = ""
@@ -99,7 +107,7 @@ class ExporterConfig:
 
     
     ##################
-    ### Properties ###
+    ### PROPERTIES ###
     ##################
 
 
@@ -115,7 +123,10 @@ class ExporterConfig:
 
     @domain.setter
     def domain(self, value: str):
-        self.__domain = value
+        if re.match(r"^https://[.]+\.atlassian.net$", value):
+            self.__domain = value
+        else:
+            raise ValueError(f"The given domain '{value}' does not fit the pattern 'https://[YOUR-NAME].atlassian.net'. Please check the YAML configuration file.")
 
     @property
     def username(self) -> str:
@@ -144,18 +155,9 @@ class ExporterConfig:
         return self.__max_results
 
     # Properties for issue field export
-
     @property
-    def fields_to_fetch(self) -> list:
-        return self.__fields_to_fetch
-
-    @property
-    def standard_field_flagged(self) -> CustomIssueFieldFlagged:
-        return self.__standard_field_flagged
-
-    @property
-    def standard_field_parent(self) -> CustomIssueFieldParent:
-        return self.__standard_field_parent
+    def issue_fields(self) -> dict:
+        return self.__issue_fields
 
     @property
     def standard_field_prefix(self) -> str:
@@ -187,7 +189,7 @@ class ExporterConfig:
 
 
     ######################
-    ### Public methods ###
+    ### PUBLIC METHODS ###
     ######################
 
 
@@ -196,7 +198,7 @@ class ExporterConfig:
 
 
     ######################
-    ### Business logic ###
+    ### BUSINESS LOGIC ###
     ######################
 
 
@@ -270,41 +272,42 @@ class ExporterConfig:
 
 
         # Ceck all mandatory attributes    
-        if self.__check_mandatory_field(data, ExporterConfig.YAML__MANDATORY__DECIMAL_SEPARATOR):
-            match data[ExporterConfig.YAML__MANDATORY][ExporterConfig.YAML__MANDATORY__DECIMAL_SEPARATOR]:
-                case ExporterConfig.DECIMAL_SEPARATOR_POINT:
-                    self.__decimal_separator = ExporterConfig.DECIMAL_SEPARATOR_POINT
-                case ExporterConfig.DECIMAL_SEPARATOR_COMMA:
-                    self.__decimal_separator = ExporterConfig.DECIMAL_SEPARATOR_COMMA
-                case _:
-                    raise ValueError(f"Please check the value for the attribute {ExporterConfig.YAML__MANDATORY} > {ExporterConfig.YAML__MANDATORY__DECIMAL_SEPARATOR}.")
-
-        if self.__check_mandatory_field(data, ExporterConfig.YAML__MANDATORY__PARENT):
-           self.__standard_field_parent = CustomIssueFieldParent()
-
-        if self.__check_mandatory_field(data, ExporterConfig.YAML__MANDATORY__FLAGGED):
-            self.__standard_field_flagged = CustomIssueFieldFlagged()
+        match self.__check_mandatory_attribute(data, ExporterConfig.YAML__MANDATORY__DECIMAL_SEPARATOR):
+            case ExporterConfig.DECIMAL_SEPARATOR_POINT:
+                self.__decimal_separator = ExporterConfig.DECIMAL_SEPARATOR_POINT
+            case ExporterConfig.DECIMAL_SEPARATOR_COMMA:
+                self.__decimal_separator = ExporterConfig.DECIMAL_SEPARATOR_COMMA
+            case _:
+                raise ValueError(f"Please check the value for the attribute {ExporterConfig.YAML__MANDATORY} > {ExporterConfig.YAML__MANDATORY__DECIMAL_SEPARATOR}.")
+        self.issue_fields[ExporterConfig.ISSUE_FIELD_NAME_PARENT].id = self.__check_mandatory_attribute(data, ExporterConfig.YAML__MANDATORY__PARENT)
+        self.issue_fields[ExporterConfig.ISSUE_FIELD_NAME_FLAGGED].id = self.__check_mandatory_attribute(data, ExporterConfig.YAML__MANDATORY__FLAGGED)
         
 
-        # Set the additional field default field names
+        # Decide for all standard fields
         if ExporterConfig.YAML__STANDARD_FIELDS in data:
-            for name, id in self.__standard_fields.items():
-                if name in self.__always_show_in_export or \
-                    (name in data[ExporterConfig.YAML__STANDARD_FIELDS] and \
-                    bool(data[ExporterConfig.YAML__STANDARD_FIELDS][name])):
+            for name, export_to_csv in data[ExporterConfig.YAML__STANDARD_FIELDS]:
+                if name in self.issue_fields.keys():
                     match name:
-                        case self.ISSUE_FIELD_NAME_PARENT:
-                            self.__fields_to_fetch.append(CustomIssueFieldParent(name, id))
-                        case self.ISSUE_FIELD_NAME_FLAGGED:
-                            self.__fields_to_fetch.append(CustomIssueFieldFlagged(name, id))
+                        case ExporterConfig.ISSUE_FIELD_NAME_ISSUE_ID | ExporterConfig.ISSUE_FIELD_NAME_ISSUE_KEY:
+                            # Always export the issue key and ID to the CSV file
+                            self.issue_fields[name].fetch = True
+                            self.issue_fields[name].export_to_csv = True
+                        case ExporterConfig.ISSUE_FIELD_NAME_PARENT | ExporterConfig.ISSUE_FIELD_NAME_PARENT:
+                            # Always fetch but export to CSV file is optional
+                            self.issue_fields[name].fetch = True
+                            self.issue_fields[name].export_to_csv = bool(export_to_csv)
                         case _:
-                            self.fields_to_fetch.append(self._default_fields_internal_names[key])
+                            # Both, fetching and exporting to CSV file are optional
+                            self.issue_fields[name].fetch = bool(export_to_csv) # Only fetch, if issue field should be shown in csv file
+                            self.issue_fields[name].export_to_csv = bool(export_to_csv)
+                else:
+                    raise ValueError(f"Unknown standard issue field '{name}' defined in YAML configuration file.")
 
         # Set up all defined custom fields
         if ExporterConfig.YAML__CUSTOM_FIELDS in data and isinstance(data[ExporterConfig.YAML__CUSTOM_FIELDS], dict):
-            self.custom_fields = dict(data[ExporterConfig.YAML__CUSTOM_FIELDS])
-            for custom_field_id in self._custom_fields.values():
-                self.__fields_to_fetch.append(custom_field_id)
+            for custom_field_name, custom_field_id in data[ExporterConfig.YAML__CUSTOM_FIELDS].items():
+                self.issue_fields[custom_field_name] = CustomIssueField(custom_field_name, True, True)
+                self.issue_fields[custom_field_name].id =  custom_field_id
 
         if ExporterConfig.YAML__MISC in data:
             if ExporterConfig.YAML__MISC__CUSTOM_FIELD_PREFIX in data[ExporterConfig.YAML__MISC]:
@@ -323,7 +326,7 @@ class ExporterConfig:
 
 
     #######################
-    ### Support methods ###
+    ### SUPPORT METHODS ###
     #######################
 
 
@@ -346,8 +349,8 @@ class ExporterConfig:
         
         return jql_query
 
-    # GET MANDATORIY VALUE
-    def __check_mandatory_field(self, data:dict, field:str):
+
+    def __check_mandatory_attribute(self, data:dict, attribute:str) --> str:
         """...
 
         Args:
@@ -360,8 +363,10 @@ class ExporterConfig:
             ValueError: ...
         """
         if ExporterConfig.YAML__MANDATORY in data:
-            if field not in data[ExporterConfig.YAML__MANDATORY]:
-                raise ValueError(f"Mandatory attribute '{field}' is missing in YAML config file.")    
+            if attribute in data[ExporterConfig.YAML__MANDATORY]:
+                return data[ExporterConfig.YAML__MANDATORY][attribute]
+            else:
+                raise ValueError(f"Mandatory attribute '{attribute}' is missing in YAML config file.")    
         else:
             raise ValueError(f"Section '{ExporterConfig.YAML__MANDATORY}' is missing in YAML config file.")
 
