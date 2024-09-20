@@ -1,12 +1,12 @@
 # coding: UTF-8
 
-from issue_field import IssueField
+from .custom_issue_field import CustomIssueField
 
-class CustomIssueFieldFlagged(IssueField):
+class CustomIssueFieldFlagged(CustomIssueField):
     """
     """
     def __init__(self) -> None:
-        super().__init__("Flagged")
+        super().__init__("Flagged", True, False)
 
     def parse_value(self, raw_value: object) -> str:
         """

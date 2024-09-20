@@ -1,6 +1,6 @@
 # coding: UTF-8
 
-from custom_issue_field import CustomIssuefield
+from .custom_issue_field import CustomIssueField
 
 class CustomIssueFieldParent(CustomIssueField):
     """

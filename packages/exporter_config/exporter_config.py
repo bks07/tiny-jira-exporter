@@ -4,11 +4,11 @@ import datetime
 import yaml
 import re
 
-from issue_field import IssueField
-from custom_issue_field import CustomIssueField
-from custom_issue_field_parent import CustomIssueFieldParent
-from custom_issue_field_flagged import CustomIssueFieldFlagged
-from workflow import Workflow
+from .standard_issue_field import StandardIssueField
+from .custom_issue_field import CustomIssueField
+from .custom_issue_field_parent import CustomIssueFieldParent
+from .custom_issue_field_flagged import CustomIssueFieldFlagged
+from .workflow import Workflow
 
 class ExporterConfig:
     """
@@ -62,8 +62,9 @@ class ExporterConfig:
     DECIMAL_SEPARATOR_POINT = "Point"
     DECIMAL_SEPARATOR_COMMA = "Comma"
 
-    def __init__(self, yaml_file_location: str, logger: object):
+    def __init__(self, yaml_file_location: str, logger: object, shall_pretty_print: bool = False):
         self.__logger = logger
+        self.__shall_pretty_print = shall_pretty_print
         
         # Porperties for Jira connection
         self.__domain: str = ""
@@ -76,19 +77,19 @@ class ExporterConfig:
 
         # Properties for issue field export
         self.__issue_fields: dict = {
-            ExporterConfig.ISSUE_FIELD_NAME_ISSUE_KEY: IssueField(ExporterConfig.ISSUE_FIELD_NAME_ISSUE_KEY, "key", True, True),
-            ExporterConfig.ISSUE_FIELD_NAME_ISSUE_ID: IssueField(ExporterConfig.ISSUE_FIELD_NAME_ISSUE_ID, "id", True, True),
-            ExporterConfig.ISSUE_FIELD_NAME_ISSUE_TYPE: IssueField(ExporterConfig.ISSUE_FIELD_NAME_ISSUE_TYPE, "issuetype"),
-            ExporterConfig.ISSUE_FIELD_NAME_REPORTER: IssueField(ExporterConfig.ISSUE_FIELD_NAME_REPORTER, "reporter"),
-            ExporterConfig.ISSUE_FIELD_NAME_ASSIGNEE: IssueField(ExporterConfig.ISSUE_FIELD_NAME_ASSIGNEE, "assignee"),
-            ExporterConfig.ISSUE_FIELD_NAME_SUMMARY: IssueField(ExporterConfig.ISSUE_FIELD_NAME_SUMMARY, "summary"),
-            ExporterConfig.ISSUE_FIELD_NAME_STATUS: IssueField(ExporterConfig.ISSUE_FIELD_NAME_STATUS, "status"),
-            ExporterConfig.ISSUE_FIELD_NAME_RESOLUTION: IssueField(ExporterConfig.ISSUE_FIELD_NAME_RESOLUTION, "resolution"),
-            ExporterConfig.ISSUE_FIELD_NAME_PRIORITY: IssueField(ExporterConfig.ISSUE_FIELD_NAME_PRIORITY, "priority"),
-            ExporterConfig.ISSUE_FIELD_NAME_CREATED: IssueField(ExporterConfig.ISSUE_FIELD_NAME_CREATED, "created"),
-            ExporterConfig.ISSUE_FIELD_NAME_RESOLVED: IssueField(ExporterConfig.ISSUE_FIELD_NAME_RESOLVED, "resolved"),
+            ExporterConfig.ISSUE_FIELD_NAME_ISSUE_KEY: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME_ISSUE_KEY, "key", True, True),
+            ExporterConfig.ISSUE_FIELD_NAME_ISSUE_ID: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME_ISSUE_ID, "id", True, True),
+            ExporterConfig.ISSUE_FIELD_NAME_ISSUE_TYPE: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME_ISSUE_TYPE, "issuetype"),
+            ExporterConfig.ISSUE_FIELD_NAME_REPORTER: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME_REPORTER, "reporter"),
+            ExporterConfig.ISSUE_FIELD_NAME_ASSIGNEE: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME_ASSIGNEE, "assignee"),
+            ExporterConfig.ISSUE_FIELD_NAME_SUMMARY: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME_SUMMARY, "summary"),
+            ExporterConfig.ISSUE_FIELD_NAME_STATUS: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME_STATUS, "status"),
+            ExporterConfig.ISSUE_FIELD_NAME_RESOLUTION: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME_RESOLUTION, "resolution"),
+            ExporterConfig.ISSUE_FIELD_NAME_PRIORITY: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME_PRIORITY, "priority"),
+            ExporterConfig.ISSUE_FIELD_NAME_CREATED: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME_CREATED, "created"),
+            ExporterConfig.ISSUE_FIELD_NAME_RESOLVED: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME_RESOLVED, "resolved"),
             ExporterConfig.ISSUE_FIELD_NAME_PARENT: CustomIssueFieldParent(), # It's a locked custom field that must be defined inside the YAML config file
-            ExporterConfig.ISSUE_FIELD_NAME_ASSIGNEE: IssueField(ExporterConfig.ISSUE_FIELD_NAME_ASSIGNEE, "assignee"),
+            ExporterConfig.ISSUE_FIELD_NAME_ASSIGNEE: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME_ASSIGNEE, "assignee"),
             ExporterConfig.ISSUE_FIELD_NAME_FLAGGED: CustomIssueFieldFlagged() # It's a locked custom field that must be defined inside the YAML config file
         }
         self.__standard_field_prefix: str = ""
@@ -160,6 +161,14 @@ class ExporterConfig:
         return self.__issue_fields
 
     @property
+    def fields_to_fetch(self) -> list:
+        return_fields: list = []
+        for field in self.issue_fields.items():
+            if field.shall_fetch:
+                return_fields.append(field.id)
+        return return_fields
+
+    @property
     def standard_field_prefix(self) -> str:
         return self.__standard_field_prefix
 
@@ -211,6 +220,9 @@ class ExporterConfig:
 
         :raise ValueError: Whenever something is missing or erroneous in the YAML file
         """
+        if self.__shall_pretty_print:
+            print("Process YAML config file...")
+
         # Open the YAML file in read mode
         with open(file_location, "r") as file:
             # Parse the contents using safe_load()
@@ -235,7 +247,6 @@ class ExporterConfig:
             if ExporterConfig.YAML__CONNECTION__API_TOKEN in data[ExporterConfig.YAML__CONNECTION]:
                 self.__api_token = data[ExporterConfig.YAML__CONNECTION][ExporterConfig.YAML__CONNECTION__API_TOKEN]
         
-
         # Set up the JQL query to retrieve the right issues
         if ExporterConfig.YAML__SEARCH_CRITERIA__FILTER in data[ExporterConfig.YAML__SEARCH_CRITERIA]:
             # Creates a query where it selects the given filter
@@ -290,15 +301,15 @@ class ExporterConfig:
                     match name:
                         case ExporterConfig.ISSUE_FIELD_NAME_ISSUE_ID | ExporterConfig.ISSUE_FIELD_NAME_ISSUE_KEY:
                             # Always export the issue key and ID to the CSV file
-                            self.issue_fields[name].fetch = True
+                            self.issue_fields[name].shall_fetch = True
                             self.issue_fields[name].export_to_csv = True
                         case ExporterConfig.ISSUE_FIELD_NAME_PARENT | ExporterConfig.ISSUE_FIELD_NAME_PARENT:
                             # Always fetch but export to CSV file is optional
-                            self.issue_fields[name].fetch = True
+                            self.issue_fields[name].shall_fetch = True
                             self.issue_fields[name].export_to_csv = bool(export_to_csv)
                         case _:
                             # Both, fetching and exporting to CSV file are optional
-                            self.issue_fields[name].fetch = bool(export_to_csv) # Only fetch, if issue field should be shown in csv file
+                            self.issue_fields[name].shall_fetch = bool(export_to_csv) # Only fetch, if issue field should be shown in csv file
                             self.issue_fields[name].export_to_csv = bool(export_to_csv)
                 else:
                     raise ValueError(f"Unknown standard issue field '{name}' defined in YAML configuration file.")
@@ -323,6 +334,9 @@ class ExporterConfig:
         # Set up all workflow-related information.
         if ExporterConfig.YAML__WORKFLOW in data and data[ExporterConfig.YAML__WORKFLOW] is not None:
             self.__workflow = Workflow(data[ExporterConfig.YAML__WORKFLOW])
+        
+        if self.__shall_pretty_print:
+            print(" ... done.")
 
 
     #######################
@@ -350,7 +364,7 @@ class ExporterConfig:
         return jql_query
 
 
-    def __check_mandatory_attribute(self, data:dict, attribute:str) --> str:
+    def __check_mandatory_attribute(self, data:dict, attribute:str) -> str:
         """...
 
         Args:

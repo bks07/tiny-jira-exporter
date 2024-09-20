@@ -1,15 +1,15 @@
 # Coding: UTF-8
 
 import re
-from issue_field import IssueField
+from .issue_field import IssueField
 
 class CustomIssueField(IssueField):
 
     CUSTOM_FIELD_ID_PATTERN = r"^customfield_\d+$"
 
-    def __init__(self, name: str, fetch: bool = False, export_to_csv: bool = False):
+    def __init__(self, name: str, shall_fetch: bool = False, shall_export_to_csv: bool = False):
         self.__id: str = ""
-        super().__init__(name, "", fetch, export_to_csv)
+        super().__init__(name, "", shall_fetch, shall_export_to_csv)
 
 
     @property

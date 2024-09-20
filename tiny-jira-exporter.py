@@ -1,7 +1,6 @@
 # coding: utf8
 
 import argparse
-import pandas as pd
 import logging
 
 from packages.issue_parser.issue_parser import IssueParser
@@ -58,10 +57,8 @@ def main():
             logger.setLevel(logging.DEBUG)
 
 
-        print("Process YAML config file...")
-        config = ExporterConfig(yaml_config_file_location, logger)
-        print(" ... done.")
-
+        config = ExporterConfig(yaml_config_file_location, logger, True)
+        
         if config.domain == "" or \
             config.username == "" or \
             config.api_token == "":
@@ -76,23 +73,13 @@ def main():
                 config.api_token = str(input("Enter your Jira API token: "))
         
         # Parse all received issues
-        print("\nFetch issues from Jira...")
-        parser = IssueParser(config, logger)
+        parser = IssueParser(config, logger, True)
         parser.fetch_issues()
-        print(" ... done.")
-
-        print("\nParse fetched Jira issues...")
-        output_data = parser.parse_issues()
-        print(" ... done.")
-
-        # Write output file
-        print(f"\nWrite CSV output file to '{csv_output_file_location}'.")
-        df = pd.DataFrame.from_dict(output_data)
-        df.to_csv(csv_output_file_location, index=False, sep=";", encoding="latin-1")
-        print(" ... done.")
+        parser.parse_issues()
+        parser.export_to_csv(csv_output_file_location)
 
     except Exception as error:
-        print(f"Unexpected error: {error}")
+        print(f"Unexpected error LOLOLOL: {error}")
 
 
 if __name__ == "__main__":

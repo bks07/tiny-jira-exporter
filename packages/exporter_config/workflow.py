@@ -24,17 +24,28 @@ class Workflow:
     def categories(self) -> list:
         return self.__categories
 
+    @property
+    def number_of_statuses(self) -> int:
+        return len(self.statuses)
+    
+    @property
+    def number_of_categories(self) -> int:
+        return len(self.categories)
+
 
     ######################
     ### Public methods ###
     ######################
 
 
-    def get_category_of_status(self, status:str):
+    def category_of_status(self, status:str) -> str:
         if status not in self.statuses:
             raise ValueError("Unable to get status category. Status not defined.")
         return self.__status_category_mapping[status] # Add 'Category:' as prefix so its not confused with other fields
 
+
+    def index_of_category(self, category: str) -> str:
+        return self.__categories.index(category)
 
     def get_status_by_position(self, position: int) -> str:
         max_position: int = self.numberOfStatuses - 1
@@ -50,11 +61,3 @@ class Workflow:
         if (status not in self.statuses):
             raise ValueError(f"Position of status '{status}' could not be determined. Statues does not exist.")
         return self.statuses.index(status)
-    
-
-    def numberOfStatuses(self) -> int:
-        return len(self.statuses)
-    
-
-    def numberOfCategories(self) -> int:
-        return len(self.categories)
