@@ -7,8 +7,8 @@ class IssueField:
         # Porperties for Jira connection
         self.__name: str = name
         self.__id: str = id
-        self.__shall_fetch: bool = fetch
-        self.__shall_export_to_csv = export_to_csv
+        self.__shall_fetch: bool = shall_fetch
+        self.__shall_export_to_csv = shall_export_to_csv
         
 
     @property

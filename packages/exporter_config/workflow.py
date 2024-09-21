@@ -1,14 +1,19 @@
 # coding: UTF-8
 
 class Workflow:
-    def __init__(self, workflow: dict) -> None:
+    def __init__(self, workflow: dict, logger: object) -> None:
         self.__categories: list = []
         self.__status_category_mapping: dict = {}
+        self.__logger = logger
+
+        self.__logger.debug("Start loading workflow.")
 
         for status_category in workflow:
             self.__categories.append(status_category)
+            self.__logger.debug(f"Created status category: {status_category}")
             for status in workflow[status_category]:
                 self.__status_category_mapping[status] = status_category
+                self.__logger.debug(f"Added status: {status_category} -> {status}")
 
 
     ##################
@@ -46,6 +51,7 @@ class Workflow:
 
     def index_of_category(self, category: str) -> str:
         return self.__categories.index(category)
+
 
     def get_status_by_position(self, position: int) -> str:
         max_position: int = self.numberOfStatuses - 1

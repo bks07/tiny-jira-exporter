@@ -6,6 +6,7 @@ from jira import JIRA
 import pandas as pd
 
 from packages.exporter_config.exporter_config import ExporterConfig
+from packages.exporter_config.issue_field import IssueField
 from packages.exporter_config.standard_issue_field import StandardIssueField
 from packages.exporter_config.custom_issue_field import CustomIssueField
 
@@ -28,7 +29,7 @@ class IssueParser:
 
 
     ######################
-    ### Public methods ###
+    ### PUBLIC METHODS ###
     ######################
 
 
@@ -46,18 +47,21 @@ class IssueParser:
         :return The issue object
         """
         # Execute JQL query
+        self.__logger.debug("Starting to fetch issues from Jira.")
+
         if self.__shall_pretty_print:
             print("\nFetch issues from Jira...")
         
         try:
             self.__issues = self.__jira.search_issues(self.__config.jql_query, fields=self.__config.fields_to_fetch, maxResults=self.__config.max_results)
-            self.__logger.info(f"Issues successfully fetched: {len(self.__issues)}")
         except Exception as e:
             self.__logger.critical(f"Jira request failed with JQL: {self.__config.jql_query} (Original message: {e})")
             raise ValueError(f"Jira request failed with JQL: {self.__config.jql_query}")
         
         if self.__shall_pretty_print:
             print(" ... done.")
+        
+        self.__logger.info(f"Issues successfully fetched: {len(self.__issues)}")
 
 
     def parse_issues(self) -> None:
@@ -72,6 +76,8 @@ class IssueParser:
         Raises:
             ...: ...
         """
+        self.__logger.debug("Starting to parse issues.")
+
         if self.__shall_pretty_print:
             print("\nParse fetched Jira issues...")
 
@@ -91,7 +97,7 @@ class IssueParser:
 
             issue_data = {}
             
-            for field in self.__config.issue_fields:
+            for field in self.__config.issue_fields.values():
                 if not field.shall_export_to_csv:
                     continue
 
@@ -112,7 +118,7 @@ class IssueParser:
                             issue_data[field.name] = issue_id
 
                         case ExporterConfig.ISSUE_FIELD_NAME_ISSUE_TYPE:
-                            issue_data[field.name] = self.__parse_field_value(issue.fields.issuetype.name)
+                            issue_data[column_name] = self.__parse_field_value(issue.fields.issuetype.name)
 
                         case ExporterConfig.ISSUE_FIELD_NAME_REPORTER:
                             issue_reporter_account_id = ""
@@ -249,18 +255,19 @@ class IssueParser:
         transitions = []
         is_first_category = True
         # Initiate the status category timestamps by adding all of them with value None
-        for status_category in self.__config.get_status_categories():
+        for status_category in self.__config.workflow.categories:
+            column_name: str = self.__config.status_category_prefix + status_category
             if is_first_category:
                 # Every issue gets created with the very first status of the workflow
                 # Therefore, set the creation date for the very first category
-                categories[status_category] = issue_creation_date
+                categories[column_name] = issue_creation_date
                 is_first_category = False
             else:
-                categories[status_category] = None
+                categories[column_name] = None
 
         # Crawl through all changelogs of an issue
-        changelogs = self.jira.issue(issue_id, expand="changelog").changelog.histories
-        self.logger.debug(f"ISSUE {issue_id}")
+        changelogs = self.__jira.issue(issue_id, expand="changelog").changelog.histories
+        self.__logger.debug(f"ISSUE {issue_id}")
         for changelog in changelogs:
             # Crawl through all items of the changelog
             items = changelog.items
@@ -309,12 +316,14 @@ class IssueParser:
         elif category_from_status_index < category_to_status_index:
             for category_index in range(category_from_status_index, category_to_status_index):
                 self.__logger.debug(f"SET DATE: {category_index+1}")
-                category_dates[self.__config.workflow.categories[category_index+1]] = date
+                column_name: str = self.__config.status_category_prefix + self.__config.workflow.categories[category_index+1]
+                category_dates[column_name] = date
         # The case, when an issue has moved backward to a previous category
         else:
             for category_index in range(category_to_status_index, category_from_status_index):
                 self.__logger.debug(f"DELETE DATE: {category_index+1}")
-                category_dates[self.__config.workflow.categories[category_index+1]] = None
+                column_name: str = self.__config.status_category_prefix + self.__config.workflow.categories[category_index+1]
+                category_dates[column_name] = None
 
         return category_dates
 
@@ -355,7 +364,7 @@ class IssueParser:
                 raise Exception("Encoding detection for string failed.")
 
         elif isinstance(value, float):
-            match self.__config.get_decimal_separator():
+            match self.__config.decimal_separator:
                 case ExporterConfig.DECIMAL_SEPARATOR_COMMA:
                     return_string = str(value).replace(".", ",")
                 case _: # ExporterConfig.DECIMAL_SEPARATOR_POINT

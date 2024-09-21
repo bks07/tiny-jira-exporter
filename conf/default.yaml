@@ -75,7 +75,7 @@ Workflow:
 
 # Additional settings that are optional
 Misc:
-    Status Category Prefix: "category::" # Recommended to avoid confusion whith other fields
     Standard Field Prefix: "std::" # Recommended to avoid confusion with other fields
-    Custom Field Prefix: "cust::" # Recommended to avoid confusion with other fields
+    Custom Field Prefix: "cst::" # Recommended to avoid confusion with other fields
+    Status Category Prefix: "cat::" # Recommended to avoid confusion whith other fields
     Time Zone: Europe/Berlin # Not used yet

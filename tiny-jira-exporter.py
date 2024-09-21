@@ -2,6 +2,7 @@
 
 import argparse
 import logging
+import traceback
 
 from packages.issue_parser.issue_parser import IssueParser
 from packages.exporter_config.exporter_config import ExporterConfig
@@ -31,6 +32,10 @@ def main():
 
         logging.basicConfig()
         logger = logging.getLogger(__name__)
+        
+        # Remove all existing default handlers
+        logger.handlers = []
+        
         log_level = DISABLE_LOGGING
         match str(args.loglevel):
                 case "d":
@@ -44,17 +49,17 @@ def main():
                 case "c":
                     log_level = logging.CRITICAL # least verbose
                 case _: # "o" for off or anything else
-                    log_level = -1 # don't log anything
+                    log_level = DISABLE_LOGGING # don't log anything
 
         if log_level == DISABLE_LOGGING:
             logger.addHandler(logging.NullHandler())
             logger.setLevel(logging.CRITICAL)
         else:
-            formatter = logging.Formatter('%(asctime)s :: %(levelname)s :: %(message)s')
             console_handler = logging.StreamHandler()
+            formatter = logging.Formatter('%(asctime)s :: %(levelname)s :: %(message)s')
             console_handler.setFormatter(formatter)
-            logger.addHandler(console_handler)
-            logger.setLevel(logging.DEBUG)
+            #logger.addHandler(console_handler)
+            logger.setLevel(log_level)
 
 
         config = ExporterConfig(yaml_config_file_location, logger, True)
@@ -79,7 +84,7 @@ def main():
         parser.export_to_csv(csv_output_file_location)
 
     except Exception as error:
-        print(f"Unexpected error LOLOLOL: {error}")
+        logger.debug(f"Unexpected error: {error}\nScript has been canceled.\n{traceback.format_exc()}")
 
 
 if __name__ == "__main__":
