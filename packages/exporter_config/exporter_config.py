@@ -6,7 +6,6 @@ import re
 
 from .standard_issue_field import StandardIssueField
 from .custom_issue_field import CustomIssueField
-from .custom_issue_field_parent import CustomIssueFieldParent
 from .custom_issue_field_flagged import CustomIssueFieldFlagged
 from .workflow import Workflow
 
@@ -35,7 +34,6 @@ class ExporterConfig:
     YAML__CUSTOM_FIELDS = "Custom Issue Fields"
     YAML__WORKFLOW = "Workflow"
     YAML__MANDATORY = "Mandatory"
-    YAML__MANDATORY__PARENT = "Parent Field ID"
     YAML__MANDATORY__FLAGGED = "Flagged Field ID"
     YAML__MANDATORY__DECIMAL_SEPARATOR = "Decimal Separator"
     YAML__MISC = "Misc"
@@ -44,9 +42,9 @@ class ExporterConfig:
     YAML__MISC__STATUS_CATEGORY_PREFIX = "Status Category Prefix"
     YAML__MISC__TIME_ZONE = "Time Zone"
 
-    ISSUE_FIELD_NAME_ISSUE_KEY = "Issue Key"
-    ISSUE_FIELD_NAME_ISSUE_ID = "Issue ID"
-    ISSUE_FIELD_NAME_ISSUE_TYPE = "Issue Type"
+    ISSUE_FIELD_NAME_ISSUE_KEY = "Key"
+    ISSUE_FIELD_NAME_ISSUE_ID = "ID"
+    ISSUE_FIELD_NAME_ISSUE_TYPE = "Type"
     ISSUE_FIELD_NAME_SUMMARY = "Summary"
     ISSUE_FIELD_NAME_REPORTER = "Reporter"
     ISSUE_FIELD_NAME_ASSIGNEE = "Assignee"
@@ -89,7 +87,7 @@ class ExporterConfig:
             ExporterConfig.ISSUE_FIELD_NAME_CREATED: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME_CREATED, "created"),
             ExporterConfig.ISSUE_FIELD_NAME_RESOLVED: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME_RESOLVED, "resolved"),
             ExporterConfig.ISSUE_FIELD_NAME_LABELS: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME_LABELS, "labels"),
-            ExporterConfig.ISSUE_FIELD_NAME_PARENT: CustomIssueFieldParent(), # It's a locked custom field that must be defined inside the YAML config file
+            ExporterConfig.ISSUE_FIELD_NAME_PARENT: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME_PARENT, "parent"),
             ExporterConfig.ISSUE_FIELD_NAME_ASSIGNEE: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME_ASSIGNEE, "assignee"),
             ExporterConfig.ISSUE_FIELD_NAME_FLAGGED: CustomIssueFieldFlagged() # It's a locked custom field that must be defined inside the YAML config file
         }
@@ -334,10 +332,8 @@ class ExporterConfig:
                 raise ValueError(f"Please check the value for the attribute {ExporterConfig.YAML__MANDATORY} > {ExporterConfig.YAML__MANDATORY__DECIMAL_SEPARATOR}.")
         
 
-        self.issue_fields[ExporterConfig.ISSUE_FIELD_NAME_PARENT].id = self.__check_mandatory_attribute(data, ExporterConfig.YAML__MANDATORY__PARENT)
-        self.logger.debug(f"ID for issue field '{ExporterConfig.ISSUE_FIELD_NAME_PARENT}': {self.issue_fields[ExporterConfig.ISSUE_FIELD_NAME_PARENT].id}")
         self.issue_fields[ExporterConfig.ISSUE_FIELD_NAME_FLAGGED].id = self.__check_mandatory_attribute(data, ExporterConfig.YAML__MANDATORY__FLAGGED)
-        self.logger.debug(f"ID for issue field '{ExporterConfig.ISSUE_FIELD_NAME_FLAGGED}': {self.issue_fields[ExporterConfig.ISSUE_FIELD_NAME_PARENT].id}")
+        self.logger.debug(f"ID for issue field '{ExporterConfig.ISSUE_FIELD_NAME_FLAGGED}': {self.issue_fields[ExporterConfig.ISSUE_FIELD_NAME_FLAGGED].id}")
             
         # Decide for all standard fields
         if ExporterConfig.YAML__STANDARD_FIELDS in data:
@@ -348,7 +344,7 @@ class ExporterConfig:
                             # Always export the issue key and ID to the CSV file
                             self.issue_fields[name].shall_fetch = True
                             self.issue_fields[name].export_to_csv = True
-                        case ExporterConfig.ISSUE_FIELD_NAME_PARENT | ExporterConfig.ISSUE_FIELD_NAME_PARENT:
+                        case ExporterConfig.ISSUE_FIELD_NAME_SUMMARY | ExporterConfig.ISSUE_FIELD_NAME_STATUS:
                             # Always fetch but export to CSV file is optional
                             self.issue_fields[name].shall_fetch = True
                             self.issue_fields[name].export_to_csv = bool(export_to_csv)
@@ -412,7 +408,7 @@ class ExporterConfig:
 
         :return: The JQL like "issuetype IN(TYPE1, TYPE2, ...)"
         :rtype: str
-        """    
+        """
         jql_query = issue_field + " IN("
         for value in values:
             jql_query += value + ", "
@@ -448,7 +444,7 @@ class ExporterConfig:
 
         :return bool:
         """
-        return bool(datetime.datetime.strptime(date_string, "%Y-%m-%d"))
+        return bool(datetime.datetime.strptime(str(date_string), "%Y-%m-%d"))
     
 
     def __log_attribute(self, section: str, attribute_name: str, value) -> None:

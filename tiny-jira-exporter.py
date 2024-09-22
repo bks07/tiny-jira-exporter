@@ -16,7 +16,8 @@ def main():
     parser = argparse.ArgumentParser(description = "This script fetches Jira issues with their timestamps given a defined workflow.")
     parser.add_argument("-c", "--config", type = str, dest ="config", help = "The configuration input file name. Type must be YAML.")
     parser.add_argument("-o", "--output", type = str, dest ="output", help = "The output file name. The output file will be an CSV file.")
-    parser.add_argument("-l", "--loglevel", type = str, dest ="loglevel", help = "d := Debug (most verbose), i := Info, w := Warning, e := Error, c := Critical (least verbose), o := Off (completely disabled)")
+    parser.add_argument("-l", "--loglevel", type = str, dest ="loglevel", help = "debug (most verbose), info, warning, error, critical (least verbose), off (completely disabled)")
+    parser.add_argument("-v", "--verbose", type = bool, dest = "verbose", nargs = "?", default = False, help = "Use if you want to have a pretty print.")
 
     try:
         # Parse the arguments
@@ -30,6 +31,8 @@ def main():
         if csv_output_file_location == None or csv_output_file_location == "":
             csv_output_file_location = DEFAULT_OUTPUT_FILE
 
+        shall_pretty_print: bool = bool(args.verbose)
+
         logging.basicConfig()
         logger = logging.getLogger(__name__)
         
@@ -38,17 +41,17 @@ def main():
         
         log_level = DISABLE_LOGGING
         match str(args.loglevel):
-                case "d":
+                case "debug":
                     log_level = logging.DEBUG # most verbose
-                case "i":
+                case "info":
                     log_level = logging.INFO
-                case "w":
+                case "warning":
                     log_level = logging.WARNING
-                case "e":
+                case "error":
                     log_level = logging.ERROR
-                case "c":
+                case "critical":
                     log_level = logging.CRITICAL # least verbose
-                case _: # "o" for off or anything else
+                case _: # "off" for off or anything else
                     log_level = DISABLE_LOGGING # don't log anything
 
         if log_level == DISABLE_LOGGING:
@@ -58,11 +61,14 @@ def main():
             console_handler = logging.StreamHandler()
             formatter = logging.Formatter('%(asctime)s :: %(levelname)s :: %(message)s')
             console_handler.setFormatter(formatter)
-            #logger.addHandler(console_handler)
+            # logger.addHandler(console_handler)
             logger.setLevel(log_level)
+            # Set pretty print to false since the console logger is enable
+            shall_pretty_print = False
+            logger.debug("Pretty print has been disabled. Logger takes over.")
 
 
-        config = ExporterConfig(yaml_config_file_location, logger, True)
+        config = ExporterConfig(yaml_config_file_location, logger, shall_pretty_print)
         
         if config.domain == "" or \
             config.username == "" or \
@@ -78,7 +84,7 @@ def main():
                 config.api_token = str(input("Enter your Jira API token: "))
         
         # Parse all received issues
-        parser = IssueParser(config, logger, True)
+        parser = IssueParser(config, logger, shall_pretty_print)
         parser.fetch_issues()
         parser.parse_issues()
         parser.export_to_csv(csv_output_file_location)

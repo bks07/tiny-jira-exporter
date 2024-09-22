@@ -38,7 +38,6 @@ Search Criteria:
 
 # Mandatory attributes to define
 Mandatory:
-    Parent Field ID: customfield_10020 # Make sure that this is the correct id for the custom field 'Parent'
     Flagged Field ID: customfield_10021 # Make sure that this is the correct id for the custom field 'Flagged'
     Decimal Separator: Comma # Choose between 'Comma' and 'Point'
 
@@ -70,7 +69,7 @@ Workflow:
     in-progress:
         - In Progress
     done:
-        - Done
+        - Done  
         - Closed
 
 # Additional settings that are optional

@@ -63,7 +63,7 @@ class Workflow:
             return self.statuses[position]
 
 
-    def get_status_position(self, status: str) -> int:
+    def status_position(self, status: str) -> int:
         if (status not in self.statuses):
             raise ValueError(f"Position of status '{status}' could not be determined. Statues does not exist.")
         return self.statuses.index(status)

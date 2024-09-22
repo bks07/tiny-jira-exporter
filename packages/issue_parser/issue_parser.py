@@ -36,15 +36,11 @@ class IssueParser:
     def fetch_issues(self) -> None:
         """
         Connects to Jira and fetches the issues directly from Jira using a JQL query.
+        Uses the configuration to access all required login credentials.
 
-        :param jql_query: The JQL query that gets executed
-        :type jql_query: str
-        :param max_results: The maximum number of issues that will be returned by the JQL query
-        :type max_results: int
+        :raise ValueError: On Jira error when JQL failed.
 
-        :raise None
-
-        :return The issue object
+        :return: None
         """
         # Execute JQL query
         self.__logger.debug("Starting to fetch issues from Jira.")
@@ -65,98 +61,108 @@ class IssueParser:
 
 
     def parse_issues(self) -> None:
-        """...
+        """
+        Parses all issues that have been fetched previously to extract all information
+        that will be written to the CSV output file.
 
-        Args:
-            ...: ...
+        :raise None
 
-        Returns:
-            ...
-
-        Raises:
-            ...: ...
+        :return: None
         """
         self.__logger.debug("Starting to parse issues.")
 
         if self.__shall_pretty_print:
-            print("\nParse fetched Jira issues...")
+            print("Parse fetched Jira issues...")
 
         number_of_issues = len(self.__issues)
         # Crawl all fetches issues
         for i in range(number_of_issues):
             issue = self.__issues[i]
             # Save some variables for later use
+            issue_key = self.__parse_field_value(issue.key)
             issue_id = self.__parse_field_value(issue.id)
-            issue_status = self.__parse_field_value(issue.fields.status.name)
-            issue_creation_date = self.__parse_field_value(self.__transform_date(issue.fields.created))
+
+            self.__logger.debug(f"Start parsing issue {issue_key} ({issue_id}).")
+
             issue_summary = self.__parse_field_value(issue.fields.summary)
+
             # Get the default values of an issue that are available for each export
+            issue_creation_date = self.__parse_field_value(self.__transform_date(issue.fields.created))
 
             if self.__shall_pretty_print:
-                self.__display_progress_bar(number_of_issues, i, issue_id, issue.key, issue_summary)
+                self.__display_progress_bar(number_of_issues, i, issue_id, issue_key, issue_summary)
 
             issue_data = {}
             
             for field in self.__config.issue_fields.values():
                 if not field.shall_export_to_csv:
                     continue
+                
+                custom_field_column_name = self.__config.custom_field_prefix + field.name
+                standard_field_column_name = self.__config.standard_field_prefix + field.name
 
                 if isinstance(field, CustomIssueField):
-                    column_name: str = self.__config.custom_field_prefix + field.name
-                    issue_data[self.__parse_field_value(column_name)] = self.__parse_field_value(eval("issue.fields." + field.id))
+                    
+                    match field.name:
+                        case ExporterConfig.ISSUE_FIELD_NAME_FLAGGED:
+                            # Considered being a standard field
+                            issue_data[standard_field_column_name] = self.__parse_field_flagged(eval("issue.fields." + field.id))
+                        case _:
+                            issue_data[custom_field_column_name] = self.__parse_field_value(eval("issue.fields." + field.id))
 
                 elif isinstance(field, StandardIssueField):
-                    column_name: str = self.__config.standard_field_prefix + field.name
+                    
 
                     match field.name:
                         case ExporterConfig.ISSUE_FIELD_NAME_ISSUE_KEY:
                             # No prefix for this column
-                            issue_data[field.name] = self.__parse_field_value(issue.key)
+                            issue_data[field.name] = issue_key
 
                         case ExporterConfig.ISSUE_FIELD_NAME_ISSUE_ID:
                             # No prefix for this column
                             issue_data[field.name] = issue_id
 
                         case ExporterConfig.ISSUE_FIELD_NAME_ISSUE_TYPE:
-                            issue_data[column_name] = self.__parse_field_value(issue.fields.issuetype.name)
+                            issue_data[standard_field_column_name] = self.__parse_field_value(issue.fields.issuetype.name)
 
                         case ExporterConfig.ISSUE_FIELD_NAME_REPORTER:
                             issue_reporter_account_id = ""
                             if issue.fields.reporter != None:
                                 issue_reporter_account_id = issue.fields.reporter.accountId
-                            issue_data[column_name] = self.__parse_field_value(issue.fields.reporter)
-                            issue_data[column_name + " ID"] = self.__parse_field_value(issue_reporter_account_id)
+                            issue_data[standard_field_column_name] = self.__parse_field_value(issue.fields.reporter)
+                            issue_data[standard_field_column_name + " ID"] = self.__parse_field_value(issue_reporter_account_id)
 
                         case ExporterConfig.ISSUE_FIELD_NAME_ASSIGNEE:
                             issue_assignee_account_id = ""
                             if issue.fields.assignee != None:
                                 issue_assignee_account_id = issue.fields.assignee.accountId
-                            issue_data[column_name] = self.__parse_field_value(issue.fields.assignee)
-                            issue_data[column_name + " ID"] = self.__parse_field_value(issue_assignee_account_id)
+                            issue_data[standard_field_column_name] = self.__parse_field_value(issue.fields.assignee)
+                            issue_data[standard_field_column_name + " ID"] = self.__parse_field_value(issue_assignee_account_id)
 
                         case ExporterConfig.ISSUE_FIELD_NAME_SUMMARY:
-                            issue_data[column_name] = issue_summary
+                            issue_data[standard_field_column_name] = issue_summary
 
                         case ExporterConfig.ISSUE_FIELD_NAME_STATUS:
-                            issue_data[column_name] = issue_status
+                            issue_data[standard_field_column_name] = self.__parse_field_value(issue.fields.status.name)
 
                         case ExporterConfig.ISSUE_FIELD_NAME_RESOLUTION:
-                            issue_data[column_name] = self.__parse_field_value(issue.fields.resolution)
+                            issue_data[standard_field_column_name] = self.__parse_field_value(issue.fields.resolution)
 
                         case ExporterConfig.ISSUE_FIELD_NAME_PRIORITY:
-                            issue_data[column_name] = self.__parse_field_value(issue.fields.priority)
+                            issue_data[standard_field_column_name] = self.__parse_field_value(issue.fields.priority)
 
                         case ExporterConfig.ISSUE_FIELD_NAME_CREATED:
-                            issue_data[column_name] = issue_creation_date
+                            issue_data[standard_field_column_name] = issue_creation_date
 
                         case ExporterConfig.ISSUE_FIELD_NAME_RESOLVED:
-                            issue_data[column_name] = self.__parse_field_resolution_date(issue.fields.resolutiondate)
+                            issue_data[standard_field_column_name] = self.__parse_field_resolution_date(issue.fields.resolutiondate)
 
-                        case ExporterConfig.ISSUE_FIELD_NAME_FLAGGED:
-                            issue_data[column_name] = self.__parse_field_flagged(eval("issue.fields." + field.id))
+                        case ExporterConfig.ISSUE_FIELD_NAME_PARENT:
+                            if hasattr(issue.fields, "parent") and issue.fields.parent is not None:
+                                issue_data[standard_field_column_name] = self.__parse_field_value(issue.fields.parent.key)
 
                         case ExporterConfig.ISSUE_FIELD_NAME_LABELS:
-                            issue_data[column_name] = self.__parse_field_labels(issue.fields.labels)
+                            issue_data[standard_field_column_name] = self.__parse_field_labels(issue.fields.labels)
                     
             if self.__config.has_workflow():
                 issue_data.update(self.__parse_status_category_timestamps(issue_id, issue_creation_date))
@@ -165,17 +171,26 @@ class IssueParser:
         
         if self.__shall_pretty_print:
             print(" ... done.")
+        
+        self.__logger.debug("All issues parsed.")
 
 
     def export_to_csv(self, file_location: str) -> None:
+        self.__logger.debug("Write CSV file.")
+
         if self.__shall_pretty_print:
             print(f"\nWrite CSV output file to '{file_location}'.")
         
-        df = pd.DataFrame.from_dict(self.__parsed_data)
-        df.to_csv(file_location, index=False, sep=";", encoding="latin-1")
-
-        if self.__shall_pretty_print:
-            print(" ... done.")
+        try:
+            df = pd.DataFrame.from_dict(self.__parsed_data)
+            df.to_csv(file_location, index=False, sep=";", encoding="latin-1")
+            
+            if self.__shall_pretty_print:
+                print(" ... done.")
+            
+            self.__logger.debug("CSV file successfully written.")
+        except Exception as error:
+            self.__logger.critical(error)
 
 
     ############################
@@ -183,17 +198,16 @@ class IssueParser:
     ############################
 
 
-    def __parse_field_labels(self, labels:list):
-        """...
+    def __parse_field_labels(self, labels: list):
+        """
+        Parses the list of labels and returns it as a string that
+        can be used inside the CSV output file.
 
-        Args:
-            ...: ...
+        :param labels: The list of labels
+        :type labels: list
 
-        Returns:
-            ...
-
-        Raises:
-            ...: ...
+        :return: All labels in a string, separated by a tube | and enclosed in single quotation makrs '.
+        :rtype: str
         """
         return_string = ""
         if len(labels) > 0:
@@ -201,17 +215,15 @@ class IssueParser:
         return self.__parse_field_value(return_string)
         
 
-    def __parse_field_resolution_date(self, date:str) -> str:
-        """...
+    def __parse_field_resolution_date(self, date: str) -> str:
+        """
+        Checks if the resolution date is set.
 
-        Args:
-            ...: ...
+        :param date: The list of labels
+        :type date: str
 
-        Returns:
-            ...
-
-        Raises:
-            ...: ...
+        :return: Returns a proper formatted date string or an empty sting.
+        :rtype: str
         """
         return_string = ""
         if date != None and len(str(date)) > 0:
@@ -219,17 +231,15 @@ class IssueParser:
         return self.__parse_field_value(self.__transform_date(return_string))
 
         
-    def __parse_field_flagged(self, value):
-        """...
+    def __parse_field_flagged(self, value) -> str:
+        """
+        Checks if the resolution date is set.
 
-        Args:
-            ...: ...
+        :param value: Either an object (if flag is set) or None (if unflagged).
+        :type value: Any
 
-        Returns:
-            ...
-
-        Raises:
-            ...: ...
+        :return: 'False' or 'True' as string
+        :rtype: str
         """
         return value is not None
 
@@ -267,7 +277,6 @@ class IssueParser:
 
         # Crawl through all changelogs of an issue
         changelogs = self.__jira.issue(issue_id, expand="changelog").changelog.histories
-        self.__logger.debug(f"ISSUE {issue_id}")
         for changelog in changelogs:
             # Crawl through all items of the changelog
             items = changelog.items
@@ -302,26 +311,28 @@ class IssueParser:
         category_from_status = self.__config.workflow.category_of_status(from_status)
         category_to_status = self.__config.workflow.category_of_status(to_status)
 
+        position_from_status = self.__config.workflow.status_position(from_status)
+        position_to_status = self.__config.workflow.status_position(to_status)
+
         category_from_status_index = self.__config.workflow.index_of_category(category_from_status)
         category_to_status_index = self.__config.workflow.index_of_category(category_to_status)
 
-        self.__logger.debug(f"###TRANSITION: {from_status}({category_from_status}) -> {to_status}({category_to_status})")
-        self.__logger.debug(f"Date: {date}")
+        self.__logger.debug(f"Transition on {date}: {position_from_status}:{from_status}({category_from_status}) -> {position_to_status}:{to_status}({category_to_status})")
         # Nothing to do here, this date had already been written
         # since there is no change to the category
         if category_from_status_index == category_to_status_index:
-            self.__logger.debug(f"Same category!\n")
+            self.__logger.debug(f"Same category, no dates to set.")
             return category_dates
         # The normal case, where the issue has been moved forward
         elif category_from_status_index < category_to_status_index:
             for category_index in range(category_from_status_index, category_to_status_index):
-                self.__logger.debug(f"SET DATE: {category_index+1}")
+                self.__logger.debug(f"Set date {date} for category: {category_index+1}")
                 column_name: str = self.__config.status_category_prefix + self.__config.workflow.categories[category_index+1]
                 category_dates[column_name] = date
         # The case, when an issue has moved backward to a previous category
         else:
             for category_index in range(category_to_status_index, category_from_status_index):
-                self.__logger.debug(f"DELETE DATE: {category_index+1}")
+                self.__logger.debug(f"Unset date for category: {category_index+1}")
                 column_name: str = self.__config.status_category_prefix + self.__config.workflow.categories[category_index+1]
                 category_dates[column_name] = None
 
@@ -415,7 +426,7 @@ class IssueParser:
 
         progress_bar_length = 10
         
-        length_done = int(percentage / 10)
+        length_done = int(percentage / progress_bar_length)
         length_todo = progress_bar_length - length_done
 
         progress_bar_done = "#" * length_done
