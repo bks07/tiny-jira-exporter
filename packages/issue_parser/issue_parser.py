@@ -153,6 +153,9 @@ class IssueParser:
 
                         case ExporterConfig.ISSUE_FIELD_NAME_CREATED:
                             issue_data[standard_field_column_name] = issue_creation_date
+                        
+                        case ExporterConfig.ISSUE_FIELD_NAME_UPDATED:
+                            issue_data[standard_field_column_name] = self.__parse_field_value(self.__transform_date(issue.fields.updated))
 
                         case ExporterConfig.ISSUE_FIELD_NAME_RESOLVED:
                             issue_data[standard_field_column_name] = self.__parse_field_resolution_date(issue.fields.resolutiondate)
