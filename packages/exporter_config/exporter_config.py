@@ -52,6 +52,7 @@ class ExporterConfig:
     ISSUE_FIELD_NAME_RESOLUTION = "Resolution"
     ISSUE_FIELD_NAME_PRIORITY = "Priority"
     ISSUE_FIELD_NAME_CREATED = "Created"
+    ISSUE_FIELD_NAME_UPDATED = "Updated"
     ISSUE_FIELD_NAME_RESOLVED = "Resolved"
     ISSUE_FIELD_NAME_LABELS = "Labels"
     ISSUE_FIELD_NAME_PARENT = "Parent"
@@ -85,6 +86,7 @@ class ExporterConfig:
             ExporterConfig.ISSUE_FIELD_NAME_RESOLUTION: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME_RESOLUTION, "resolution"),
             ExporterConfig.ISSUE_FIELD_NAME_PRIORITY: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME_PRIORITY, "priority"),
             ExporterConfig.ISSUE_FIELD_NAME_CREATED: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME_CREATED, "created"),
+            ExporterConfig.ISSUE_FIELD_NAME_UPDATED: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME_UPDATED, "updated"),
             ExporterConfig.ISSUE_FIELD_NAME_RESOLVED: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME_RESOLVED, "resolved"),
             ExporterConfig.ISSUE_FIELD_NAME_LABELS: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME_LABELS, "labels"),
             ExporterConfig.ISSUE_FIELD_NAME_PARENT: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME_PARENT, "parent"),

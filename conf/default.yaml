@@ -18,7 +18,7 @@ Search Criteria:
     # Specify a list of projects instead of using a filter.
     # Obsolete if a filter is defined.
     Projects:
-        - PROit JECT
+        - PROJECT
     # Restrict the search result to the given issue types.
     # Obsolete if a filter is defined.
     Issue Types:
@@ -51,6 +51,7 @@ Standard Issue Fields:
     Resolution: !!bool Yes
     Priority: !!bool Yes
     Created: !!bool Yes
+    Updated: !!bool Yes
     Resolved: !!bool Yes
     Parent: !!bool Yes
     Flagged: !!bool Yes
