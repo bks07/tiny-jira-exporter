@@ -5,10 +5,10 @@ import chardet
 from jira import JIRA
 import pandas as pd
 
-from packages.exporter_config.exporter_config import ExporterConfig
-from packages.exporter_config.issue_field import IssueField
-from packages.exporter_config.standard_issue_field import StandardIssueField
-from packages.exporter_config.custom_issue_field import CustomIssueField
+from modules.exporter_config.exporter_config import ExporterConfig
+from modules.exporter_config.issue_field import IssueField
+from modules.exporter_config.standard_issue_field import StandardIssueField
+from modules.exporter_config.custom_issue_field import CustomIssueField
 
 class IssueParser:
     """
@@ -19,7 +19,12 @@ class IssueParser:
     :param logger: The logger for debugging purposes
     :type logger: object
     """
-    def __init__(self, config: ExporterConfig, logger: object, pretty_print: bool = False):
+    def __init__(
+        self,
+        config: ExporterConfig,
+        logger: object,
+        pretty_print: bool = False
+    ):
         self.__config: ExporterConfig = config
         self.__logger: object = logger
         self.__jira: JIRA = JIRA(config.domain, basic_auth=(config.username, config.api_token))
@@ -33,7 +38,9 @@ class IssueParser:
     ######################
 
 
-    def fetch_issues(self) -> None:
+    def fetch_issues(
+        self
+    ) -> None:
         """
         Connects to Jira and fetches the issues directly from Jira using a JQL query.
         Uses the configuration to access all required login credentials.
@@ -64,8 +71,6 @@ class IssueParser:
         """
         Parses all issues that have been fetched previously to extract all information
         that will be written to the CSV output file.
-
-        :raise None
 
         :return: None
         """
@@ -167,7 +172,7 @@ class IssueParser:
                         case ExporterConfig.ISSUE_FIELD_NAME_LABELS:
                             issue_data[standard_field_column_name] = self.__parse_field_labels(issue.fields.labels)
                     
-            if self.__config.has_workflow():
+            if self.__config.has_workflow:
                 issue_data.update(self.__parse_status_category_timestamps(issue_id, issue_creation_date))
             
             self.__parsed_data.append(issue_data)
@@ -178,7 +183,18 @@ class IssueParser:
         self.__logger.debug("All issues parsed.")
 
 
-    def export_to_csv(self, file_location: str) -> None:
+    def export_to_csv(
+        self,
+        file_location: str
+    ) -> None:
+        """
+        Exports the parsed data to a CSV file at a given location.
+
+        :param file_location: The full path to the CSV file including the file
+        :type file_location: str
+
+        :return: None
+        """
         self.__logger.debug("Write CSV file.")
 
         if self.__shall_pretty_print:
@@ -201,7 +217,10 @@ class IssueParser:
     ############################
 
 
-    def __parse_field_labels(self, labels: list):
+    def __parse_field_labels(
+        self,
+        labels: list
+    ):
         """
         Parses the list of labels and returns it as a string that
         can be used inside the CSV output file.
@@ -218,7 +237,10 @@ class IssueParser:
         return self.__parse_field_value(return_string)
         
 
-    def __parse_field_resolution_date(self, date: str) -> str:
+    def __parse_field_resolution_date(
+        self,
+        date: str
+    ) -> str:
         """
         Checks if the resolution date is set.
 
@@ -234,7 +256,10 @@ class IssueParser:
         return self.__parse_field_value(self.__transform_date(return_string))
 
         
-    def __parse_field_flagged(self, value) -> str:
+    def __parse_field_flagged(
+        self,
+        value
+    ) -> str:
         """
         Checks if the resolution date is set.
 
@@ -252,17 +277,22 @@ class IssueParser:
     ######################
 
 
-    def __parse_status_category_timestamps(self, issue_id, issue_creation_date) -> dict:
-        """...
+    def __parse_status_category_timestamps(
+        self,
+        issue_id: int,
+        issue_creation_date: str
+    ) -> dict:
+        """
+        Parses a given workflow defintion and returns the timestamps
+        for each category based on status transitions.
 
-        Args:
-            ...: ...
+        :param issue_id: The id of an issue
+        :type issue_id: int
+        :param issue_creation_date: The first category will always be set to the creation date of the issue
+        :type issue_creation_date: str
 
-        Returns:
-            ...
-
-        Raises:
-            ...: ...
+        :return: The list of catogies with the timestamp ("category: YYYY-MM-DD")
+        :rtype: dict
         """
         categories = {}
         transitions = []
@@ -299,42 +329,56 @@ class IssueParser:
         return categories
 
 
-    def __set_transition_dates(self, category_dates:dict, from_status:str, to_status:str, date:str) -> dict:
-        """...
-
-        Args:
-            ...: ...
-
-        Returns:
-            ...
-
-        Raises:
-            ...: ...
+    def __set_transition_dates(
+        self,
+        category_dates: dict,
+        start_status: str,
+        destination_status: str,
+        date: str
+    ) -> dict:
         """
-        category_from_status = self.__config.workflow.category_of_status(from_status)
-        category_to_status = self.__config.workflow.category_of_status(to_status)
+        Sets the transition dates for categories based on the date of the
+        history event and the start status to the destination status.
+        Also recognizes when an issue has moved backwards in the workflow.
+        Since this is a strict Kanban-oriented logic, the script will erase all
+        timestamps once an issue has been moved back.
 
-        position_from_status = self.__config.workflow.status_position(from_status)
-        position_to_status = self.__config.workflow.status_position(to_status)
+        :param category_dates: The dictionary with the timestamps so far
+        :type category_dates: dict
+        :param start_status: The status the issue was before it got transitioned
+        :type start_status: str
+        :param destination_status: The status the issue got transitioned to
+        :type destination_status: str
+        :param date: The date of the history event (when the transition happened)
+        :type date: str
 
-        category_from_status_index = self.__config.workflow.index_of_category(category_from_status)
-        category_to_status_index = self.__config.workflow.index_of_category(category_to_status)
+        :return: The updated transition categories
+        :rtype: dict
+        """
+        category_start_status = self.__config.workflow.category_of_status(start_status)
+        category_destination_status = self.__config.workflow.category_of_status(destination_status)
 
-        self.__logger.debug(f"Transition on {date}: {position_from_status}:{from_status}({category_from_status}) -> {position_to_status}:{to_status}({category_to_status})")
+        position_start_status = self.__config.workflow.index_of_status(start_status)
+        position_destination_status = self.__config.workflow.index_of_status(destination_status)
+
+        category_start_status_index = self.__config.workflow.index_of_category(category_start_status)
+        category_destination_status_index = self.__config.workflow.index_of_category(category_destination_status)
+
+        self.__logger.debug(f"Transition on {date}: {position_start_status}:{start_status}({category_start_status}) -> {position_destination_status}:{destination_status}({category_destination_status})")
         # Nothing to do here, this date had already been written
         # since there is no change to the category
-        if category_from_status_index == category_to_status_index:
+        if category_start_status_index == category_destination_status_index:
             self.__logger.debug(f"Same category, no dates to set.")
             return category_dates
         # The normal case, where the issue has been moved forward
-        elif category_from_status_index < category_to_status_index:
-            for category_index in range(category_from_status_index, category_to_status_index):
+        elif category_start_status_index < category_destination_status_index:
+            for category_index in range(category_start_status_index, category_destination_status_index):
                 self.__logger.debug(f"Set date {date} for category: {category_index+1}")
                 column_name: str = self.__config.status_category_prefix + self.__config.workflow.categories[category_index+1]
                 category_dates[column_name] = date
         # The case, when an issue has moved backward to a previous category
         else:
-            for category_index in range(category_to_status_index, category_from_status_index):
+            for category_index in range(category_destination_status_index, category_start_status_index):
                 self.__logger.debug(f"Unset date for category: {category_index+1}")
                 column_name: str = self.__config.status_category_prefix + self.__config.workflow.categories[category_index+1]
                 category_dates[column_name] = None
@@ -347,20 +391,22 @@ class IssueParser:
     #######################
 
 
-    def __parse_field_value(self, value) -> str:
+    def __parse_field_value(
+        self,
+        value
+    ) -> str:
         """...
         In the end, there is a recursive call to ensure that all strings
         are transformed to latin-1, since this is the only character set
         that works when exporting the data to CSV.
 
-        Args:
-            ...: ...
+        :param value: The value of the issue field
+        :type value: any
 
-        Returns:
-            ...
+        :raise Exception: If the encoding of a string failed
 
-        Raises:
-            ...: ...
+        :return: The parsed field value
+        :rtype: str
         """
         if value == None or value == "":
             return ""
@@ -393,17 +439,19 @@ class IssueParser:
         return return_string
 
 
-    def __transform_date(self, timestamp:str):
-        """TODO: Must be implemented.
+    def __transform_date(
+        self,
+        timestamp:str
+    ) -> str:
+        """
+        A simple helper method that strips the all time information from a date filed (datetime to date only).
+        TODO: Must be implemented to support user configured date formats as well as matching the correct time zone.
 
-        Args:
-            ...: ...
+        :param timestamp: A timestamp that contains a date like YYYY-MM-DD
+        :type timestamp: str
 
-        Returns:
-            ...
-
-        Raises:
-            ...: ...
+        :return: The date only following YYYY-MM-DD
+        :rtype: str
         """
         #import pytz
         #if timezone_str in pytz.all_timezones:
@@ -413,17 +461,29 @@ class IssueParser:
         return timestamp[0:10]
 
 
-    def __display_progress_bar(self, number_of_issues:int, iterator:int, issue_id:str, issue_key:str, issue_summary:str):
-        """...
+    def __display_progress_bar(
+        self,
+        number_of_issues: int,
+        iterator: int,
+        issue_id: str,
+        issue_key: str,
+        issue_summary: str
+    ) -> None:
+        """
+        This method prints out a progress bar while the issues get parsed.
 
-        Args:
-            ...: ...
-
-        Returns:
-            ...
-
-        Raises:
-            ...: ...
+        :param number_of_issues: The total number of fetched issues to parse
+        :type number_of_issues: int
+        :param iterator: Keeps track which of the fetched issues is currently parsed
+        :type iterator: int
+        :param issue_id: The id of the currently parsed issue - will be printed as well
+        :type issue_id: str
+        :param issue_key: The key of the currently parsed issue - will be printed as well
+        :type issue_key: str
+        :param issue_summary: The summary of the currently parsed issue - will be printed as well
+        :type issue_summary: str
+        
+        :return: None
         """
         percentage = math.ceil(iterator/number_of_issues*100)
 

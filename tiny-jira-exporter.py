@@ -4,8 +4,8 @@ import argparse
 import logging
 import traceback
 
-from packages.issue_parser.issue_parser import IssueParser
-from packages.exporter_config.exporter_config import ExporterConfig
+from modules.issue_parser.issue_parser import IssueParser
+from modules.exporter_config.exporter_config import ExporterConfig
 
 DEFAULT_CONFIGURATION_FILE = "./conf/default.yaml"
 DEFAULT_OUTPUT_FILE = "./exports/default.csv"
@@ -17,7 +17,6 @@ def main():
     parser.add_argument("-c", "--config", type = str, dest ="config", help = "The configuration input file name. Type must be YAML.")
     parser.add_argument("-o", "--output", type = str, dest ="output", help = "The output file name. The output file will be an CSV file.")
     parser.add_argument("-l", "--loglevel", type = str, dest ="loglevel", help = "debug (most verbose), info, warning, error, critical (least verbose), off (completely disabled)")
-    parser.add_argument("-v", "--verbose", type = bool, dest = "verbose", nargs = "?", default = False, help = "Use if you want to have a pretty print.")
 
     try:
         # Parse the arguments
@@ -31,8 +30,6 @@ def main():
         if csv_output_file_location == None or csv_output_file_location == "":
             csv_output_file_location = DEFAULT_OUTPUT_FILE
 
-        shall_pretty_print: bool = bool(args.verbose)
-
         logging.basicConfig()
         logger = logging.getLogger(__name__)
         
@@ -40,6 +37,7 @@ def main():
         logger.handlers = []
         
         log_level = DISABLE_LOGGING
+        shall_pretty_print: bool = True
         match str(args.loglevel):
                 case "debug":
                     log_level = logging.DEBUG # most verbose
@@ -66,7 +64,6 @@ def main():
             # Set pretty print to false since the console logger is enable
             shall_pretty_print = False
             logger.debug("Pretty print has been disabled. Logger takes over.")
-
 
         config = ExporterConfig(yaml_config_file_location, logger, shall_pretty_print)
         
