@@ -59,7 +59,7 @@ __Important:__ Always check the values in this section. It is important that the
 
 ## Default Issue Fields
 Please note that the script always exports the issue key and the issue ID.
-Currently, the script supports to export the following default issue fields.
+Currently, the script supports to export the following standard issue fields.
 * Reporter
 * Assignee
 * Summary
@@ -67,13 +67,15 @@ Currently, the script supports to export the following default issue fields.
 * Resolution
 * Priority
 * Created
+* Updated
 * Resolved
+* Parent
 * Flagged
 * Labels
 
 For disabling the export of a given field, you can delete the lines, you can comment them out, or set them to No. The least is the recommended method.
 ```yaml
-Default Issue Fields:
+Standard Issue Fields:
     Reporter: !!bool Yes # will be exported
     Assignee: !!bool No # not included in export
 #    Summary: !!bool Yes # not included in export
@@ -98,14 +100,11 @@ Custom Issue Fields:
 
 You can leave it empty if you don't want to extract any custom fields at all.
 
-__Important:__ I hightly recommend to only use lower-case characters and the dash symbol for naming the custom fields. This way, you avoid that 
+__Important:__ I hightly recommend to only use lower-case characters and the dash symbol for naming the custom fields. The script will not extract two issue fields with the same name.
 
 
 ### Flagged
 Flagged is listed as a custom field, however, the exporter handles it as a default issue field. The reason is, that the flagged field holds an object that has to be further processed. Therefore, it requires a special treatment by the exporter.
-
-### Parent
-Same as for flagged, it returns an object which needs special treatment by the exporter.
 
 ### Story Points
 If you want to export story points, always search for the custom field 'Story points estimate'. The custom field "Story Points" is a legacy field that is not used by modern Jira Cloud.
@@ -114,6 +113,7 @@ If you want to export story points, always search for the custom field 'Story po
 ## Workflow
 Define a workflow that is used for extracting dates that can be used for, e. g., estimating cycle times. It is important that you must map the statusses of your workflow to categories.
 Whenever a Jira issue entered one status of a given category, the algorithm of this script saves the date when it happened.
+When you have moved issues backwards from one category to another, the script will delete the timestamp for the categories that come after the new category. This ensures a Kanban-compliant analysis.
 
 The following workflow mapping is the most simple example.
 ```yaml
