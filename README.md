@@ -7,7 +7,7 @@ You can specify which issues it should fetch by using different filter criteria 
 I had the idea to develop this tool since I used the Jira-to-Analytics tool from Daniel S. Vacanti (ActionableAgile(TM), https://github.com/ActionableAgile/jira-to-analytics). Since 2017, I have used this tool to export Jira data or analyze cycle times.
 Since I am using my own Jira Cloud instance, I got frustrated because the Jira-to-Analytics didn't seem to work correctly with Jira Cloud. I also needed some other features, so I wrote my own tool.
 
-The Tiny Jira Exporter uses the basic ideas of the Jira-to-Analytics tool, such as configuring via a YAML file or creating the output into a CSV file.
+The Tiny Jira Exporter uses the basic ideas of the Jira-to-Analytics tool, such as configuring via a YAML file or exporting data into a CSV file.
 However, I developed this tool from scratch since Jira-to-Analytics is written in TypeScript - for which I have no experience. So, I went ahead and developed this tool in Python.
 My tool's usage is also slightly different, and I will continue to add features. Since it is open for contribution, contact me via LinkedIn to join my GitHub project if interested.
 
