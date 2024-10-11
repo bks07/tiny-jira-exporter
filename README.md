@@ -178,3 +178,4 @@ This script is maintained by [Boris Karl Schlein](https://github.com/bks07).
 
 You may also be interested in the following articles that make use of this script:
 * [Easy Risk Management with Jira, Confluence, and Excel](https://medium.com/agileinsider/easy-risk-management-with-jira-confluence-and-excel-c7b2dd13f848)
+* [Whisky, Kanban, and Jira — A Perfect Match](https://medium.com/agileinsider/whisky-kanban-and-jira-a-perfect-match-002f9f5eabfc)
