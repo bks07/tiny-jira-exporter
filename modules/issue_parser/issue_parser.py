@@ -77,7 +77,7 @@ class IssueParser:
         self.__logger.debug("Starting to parse issues.")
 
         if self.__shall_pretty_print:
-            print("Parse fetched Jira issues...")
+            print("\nParse fetched Jira issues...")
 
         number_of_issues = len(self.__issues)
         # Crawl all fetches issues
@@ -109,7 +109,7 @@ class IssueParser:
                 if isinstance(field, CustomIssueField):
                     
                     match field.name:
-                        case ExporterConfig.ISSUE_FIELD_NAME_FLAGGED:
+                        case ExporterConfig.ISSUE_FIELD_NAME__FLAGGED:
                             # Considered being a standard field
                             issue_data[standard_field_column_name] = self.__parse_field_flagged(eval("issue.fields." + field.id))
                         case _:
@@ -119,58 +119,70 @@ class IssueParser:
                     
 
                     match field.name:
-                        case ExporterConfig.ISSUE_FIELD_NAME_ISSUE_KEY:
+                        case ExporterConfig.ISSUE_FIELD_NAME__ISSUE_KEY:
                             # No prefix for this column
                             issue_data[field.name] = issue_key
 
-                        case ExporterConfig.ISSUE_FIELD_NAME_ISSUE_ID:
+                        case ExporterConfig.ISSUE_FIELD_NAME__ISSUE_ID:
                             # No prefix for this column
                             issue_data[field.name] = issue_id
 
-                        case ExporterConfig.ISSUE_FIELD_NAME_ISSUE_TYPE:
+                        case ExporterConfig.ISSUE_FIELD_NAME__ISSUE_TYPE:
                             issue_data[standard_field_column_name] = self.__parse_field_value(issue.fields.issuetype.name)
 
-                        case ExporterConfig.ISSUE_FIELD_NAME_REPORTER:
+                        case ExporterConfig.ISSUE_FIELD_NAME__REPORTER:
                             issue_reporter_account_id = ""
                             if issue.fields.reporter != None:
                                 issue_reporter_account_id = issue.fields.reporter.accountId
                             issue_data[standard_field_column_name] = self.__parse_field_value(issue.fields.reporter)
                             issue_data[standard_field_column_name + " ID"] = self.__parse_field_value(issue_reporter_account_id)
 
-                        case ExporterConfig.ISSUE_FIELD_NAME_ASSIGNEE:
+                        case ExporterConfig.ISSUE_FIELD_NAME__ASSIGNEE:
                             issue_assignee_account_id = ""
                             if issue.fields.assignee != None:
                                 issue_assignee_account_id = issue.fields.assignee.accountId
                             issue_data[standard_field_column_name] = self.__parse_field_value(issue.fields.assignee)
                             issue_data[standard_field_column_name + " ID"] = self.__parse_field_value(issue_assignee_account_id)
 
-                        case ExporterConfig.ISSUE_FIELD_NAME_SUMMARY:
+                        case ExporterConfig.ISSUE_FIELD_NAME__SUMMARY:
                             issue_data[standard_field_column_name] = issue_summary
 
-                        case ExporterConfig.ISSUE_FIELD_NAME_STATUS:
+                        case ExporterConfig.ISSUE_FIELD_NAME__STATUS:
                             issue_data[standard_field_column_name] = self.__parse_field_value(issue.fields.status.name)
 
-                        case ExporterConfig.ISSUE_FIELD_NAME_RESOLUTION:
+                        case ExporterConfig.ISSUE_FIELD_NAME__RESOLUTION:
                             issue_data[standard_field_column_name] = self.__parse_field_value(issue.fields.resolution)
 
-                        case ExporterConfig.ISSUE_FIELD_NAME_PRIORITY:
+                        case ExporterConfig.ISSUE_FIELD_NAME__PRIORITY:
                             issue_data[standard_field_column_name] = self.__parse_field_value(issue.fields.priority)
 
-                        case ExporterConfig.ISSUE_FIELD_NAME_CREATED:
+                        case ExporterConfig.ISSUE_FIELD_NAME__CREATED:
                             issue_data[standard_field_column_name] = issue_creation_date
                         
-                        case ExporterConfig.ISSUE_FIELD_NAME_UPDATED:
+                        case ExporterConfig.ISSUE_FIELD_NAME__UPDATED:
                             issue_data[standard_field_column_name] = self.__parse_field_value(self.__transform_date(issue.fields.updated))
 
-                        case ExporterConfig.ISSUE_FIELD_NAME_RESOLVED:
-                            issue_data[standard_field_column_name] = self.__parse_field_resolution_date(issue.fields.resolutiondate)
+                        case ExporterConfig.ISSUE_FIELD_NAME__RESOLVED:
+                            issue_data[standard_field_column_name] = self.__parse_field_optional_date(issue.fields.resolutiondate)
 
-                        case ExporterConfig.ISSUE_FIELD_NAME_PARENT:
+                        case ExporterConfig.ISSUE_FIELD_NAME__PARENT:
                             if hasattr(issue.fields, "parent") and issue.fields.parent is not None:
                                 issue_data[standard_field_column_name] = self.__parse_field_value(issue.fields.parent.key)
 
-                        case ExporterConfig.ISSUE_FIELD_NAME_LABELS:
+                        case ExporterConfig.ISSUE_FIELD_NAME__LABELS:
                             issue_data[standard_field_column_name] = self.__parse_field_labels(issue.fields.labels)
+
+                        case ExporterConfig.ISSUE_FIELD_NAME__DUE_DATE:
+                            issue_data[standard_field_column_name] = self.__parse_field_optional_date(issue.fields.duedate)
+
+                        case ExporterConfig.ISSUE_FIELD_NAME__COMPONENTS:
+                            issue_data[standard_field_column_name] = self.__parse_versions(issue.fields.components) # The component field is similar to a version field 
+                        
+                        case ExporterConfig.ISSUE_FIELD_NAME__FIXED_VERSIONS:
+                            issue_data[standard_field_column_name] = self.__parse_versions(issue.fields.fixVersions)
+
+                        case ExporterConfig.ISSUE_FIELD_NAME__AFFECTED_VERSIONS:
+                            issue_data[standard_field_column_name] = self.__parse_versions(issue.fields.versions)
                     
             if self.__config.has_workflow:
                 issue_data.update(self.__parse_status_category_timestamps(issue_id, issue_creation_date))
@@ -237,12 +249,36 @@ class IssueParser:
         return self.__parse_field_value(return_string)
         
 
-    def __parse_field_resolution_date(
+    def __parse_versions(
+        self,
+        versions: list
+    ):
+        """
+        Parses the list of labels and returns it as a string that
+        can be used inside the CSV output file.
+
+        :param versions: The list of versions
+        :type labels: list[Version]
+
+        :return: All labels in a string, separated by a tube | and enclosed in single quotation makrs '.
+        :rtype: str
+        """
+        return_string = ""
+
+        if len(versions) > 0:
+            return_string = "'"
+            for version in versions:
+                return_string +=  version.name + "'|'"
+            return_string = return_string[:-2]
+        return self.__parse_field_value(return_string)
+    
+
+    def __parse_field_optional_date(
         self,
         date: str
     ) -> str:
         """
-        Checks if the resolution date is set.
+        Checks if the date is set. If so, returns it in an appropriate format.
 
         :param date: The list of labels
         :type date: str

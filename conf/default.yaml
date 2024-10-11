@@ -56,6 +56,10 @@ Standard Issue Fields:
     Parent: !!bool Yes
     Flagged: !!bool Yes
     Labels: !!bool Yes
+    Due Date: !!bool Yes
+    Components: !!bool Yes
+    Fixed Versions: !!bool Yes
+    Affected Versions: !!bool Yes
 
 # Map field names to additional attributes to extract
 Custom Issue Fields:

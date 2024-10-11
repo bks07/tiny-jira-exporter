@@ -16,8 +16,8 @@ So, I went ahead and developed this tool in Python.
 My tool's usage is also slightly different, and I will continue to add features.
 Since it is open for contribution, contact me via LinkedIn to join my GitHub project if interested.
 
-# Installation
-## Using the .EXE File
+## Installation
+### Using the .EXE File
 If you are a Windows user, you can download the latest EXE file from the releases, and that's it.
 However, I don't recommend using the EXE file since I don't build it regularly.
 The Python sources are always up to date.
@@ -29,19 +29,19 @@ Clone this repository and install all required modules as specified in the file 
 $ pip install -r requirements.txt
 ```
 
-# Usage
-## EXE file under Windows
+## Usage
+### EXE file under Windows
 When using the EXE file, the command should look like this.
 ```bash
 > .\TinyJiraExporter.exe -c ./conf/my-config.yaml -o ./export/my-output.csv
 ```
-## Python Script
+### Python Script
 Call the Python script using the following code.
 ```bash
 $ python3 jira-to-analytics.py -c ./conf/my-config.yaml -o ./export/my-output.csv
 ```
 
-## Parameters
+### Parameters
 Provide the following parameters:
 * -c - This stands for _configuration_ and must be followed by the path to the configuration YAML file you want to use.
 If you do not specify this parameter, the script will use the _default.yaml_ file inside the folder _conf_.
@@ -53,16 +53,16 @@ When logging is activated, there is no other output on the console than the logg
 Ensure that the paths are valid and that the config file exists.
 Any further configuration is done inside the YAML file.
 
-# Configuration
+## Configuration
 The best start to configure your export is to copy the file _default.yaml_, rename the copied file, and change its contents to your needs.
 I will describe the sections of the YAML configuration file in the following. Please note that whenever the script adds new features, the configuration file may change as well. However, I try to ensure backward compatibility.
 
-## Connection
+### Connection
 Specify your domain, username, and API token to grant access to your Jira instance.
 Read [Atlassian's tutorial](https://support.atlassian.com/atlassian-account/docs/manage-api-tokens-for-your-atlassian-account/) how to set up and use API tokens.
 Leaving these values empty, commenting them out, or removing them from the file results in a prompt asking you to enter the missing values after you start the script.
 
-## Search Criteria
+### Search Criteria
 This section allows you to use a predefined filter or set up a simple one by providing some values.
 I always recommend setting up a proper filter inside Jira. If a filter exists, use the exact name inside the YAML file.
 However, make sure that the user you are connecting with in the script has the proper rights to access the filter.
@@ -70,26 +70,31 @@ However, make sure that the user you are connecting with in the script has the p
 If you don't want to use a Jira filter, comment out the attribute _"Filter"_.
 Then, you must set proper values to _"Projects"_, _"Issue Types"_, and the dates for exclusion.
 
-## Mandatory
+### Mandatory
 __Important:__ Always check the values in this section.
 These values must be properly set!
 Follow the instructions in the comments of the YAML file.
 
-## Standard Issue Fields
+### Standard Issue Fields
 Please note that the script always exports the issue key and ID.
 Currently, the script supports the export of the following standard issue fields.
+* Issue Type
+* Summary
+* Parent
 * Reporter
 * Assignee
-* Summary
 * Status
 * Resolution
 * Priority
+* Flagged
 * Created
 * Updated
 * Resolved
-* Parent
-* Flagged
+* Due Date
 * Labels
+* Components
+* Fixed Versions
+* Affected Versions
 
 To disable the export of a given field, you can delete the lines, comment them out, or set them to No. The least is the recommended method.
 ```yaml
@@ -100,7 +105,7 @@ Standard Issue Fields:
 ```
 The example above only exports the field _Reporter_.
 
-## Custom Issue Fields
+### Custom Issue Fields
 ```yaml
 Custom Issue Fields:
     story-point-estimates: customfield_10016
@@ -127,16 +132,16 @@ __Important:__ I highly recommend naming the custom fields only using lower-case
 The script will not extract two issue fields with the same name.
 
 
-### Flagged
+#### Flagged
 Flagged is listed as a custom field; however, the exporter handles it as a standard issue field.
 The reason is that the flagged field holds an object that has to be further processed, so special treatment by the exporter is required.
 
-### Story Points
+#### Story Points
 To export story points, always search for the custom field "Story points estimate".
 The custom field "Story Points" is a legacy field that is not used by modern Jira Cloud instances.
 
 
-## Workflow
+### Workflow
 Define a workflow for extracting dates that can be used to estimate cycle times.
 You are required to map the statuses of your workflow into categories.
 Whenever a Jira issue enters one status of a given category, the algorithm of this script saves the date when it happened.
@@ -168,14 +173,15 @@ Workflow:
         - Closed
 ```
 
-## Misc
+### Misc
 You should leave it as it is.
 However, all of the values are optional here.
 You can change it or comment them out if you like.
 
-# Support
+## Support
 This script is maintained by [Boris Karl Schlein](https://github.com/bks07).
+You can also find me on [LinkedIn](https://www.linkedin.com/in/boriskarlschlein/) and [Medium](https://medium.com/@boris-karl-schlein).
 
-You may also be interested in the following articles that make use of this script:
+You may also be interested in the following articles that demonstrate how to make use of the script:
 * [Easy Risk Management with Jira, Confluence, and Excel](https://medium.com/agileinsider/easy-risk-management-with-jira-confluence-and-excel-c7b2dd13f848)
 * [Whisky, Kanban, and Jira — A Perfect Match](https://medium.com/agileinsider/whisky-kanban-and-jira-a-perfect-match-002f9f5eabfc)
