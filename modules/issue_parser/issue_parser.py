@@ -56,7 +56,26 @@ class IssueParser:
             print("\nFetch issues from Jira...")
         
         try:
-            self.__issues = self.__jira.search_issues(self.__config.jql_query, fields=self.__config.fields_to_fetch, maxResults=self.__config.max_results)
+            start_at:int = 0
+            batch_size:int = 50
+            remaining_max_results:int = self.__config.max_results
+            # Jira API returns pages with 100 issues per page max
+            # That's why we need to use a loop to fetch several pages
+            while remaining_max_results > 0:
+                self.__logger.debug(f"Fetch first batch starting from {start_at} with batch size {batch_size}. Remaining max results: {remaining_max_results}.")
+                if batch_size > remaining_max_results:
+                    batch_size = remaining_max_results
+                response = self.__jira.search_issues(
+                    self.__config.jql_query,
+                    fields=self.__config.fields_to_fetch,
+                    startAt=start_at,
+                    maxResults=batch_size
+                )
+                self.__issues.extend(response)
+                
+                start_at += batch_size
+                remaining_max_results -= batch_size
+
         except Exception as e:
             self.__logger.critical(f"Jira request failed with JQL: {self.__config.jql_query} (Original message: {e})")
             raise ValueError(f"Jira request failed with JQL: {self.__config.jql_query}")
@@ -533,6 +552,10 @@ class IssueParser:
 
         progress_bar = "[" + progress_bar_done + progress_bar_todo + "]"
         
+        # Strip length to avoid malfunction SKSD-54
+        if len(issue_summary) > 32:
+            issue_summary = issue_summary[:29].strip() + "..."
+
         end_of_print = "\r"
         if percentage == 100:
             end_of_print = "\n"

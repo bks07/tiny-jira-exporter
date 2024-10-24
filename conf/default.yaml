@@ -43,20 +43,20 @@ Mandatory:
 
 # Define which standard fields should the export contain
 Standard Issue Fields:
-    Issue Type: !!bool Yes
+    Type: !!bool Yes
+    Summary: !!bool Yes
     Reporter: !!bool Yes
     Assignee: !!bool Yes
-    Summary: !!bool Yes
     Status: !!bool Yes
     Resolution: !!bool Yes
     Priority: !!bool Yes
+    Flagged: !!bool Yes
     Created: !!bool Yes
     Updated: !!bool Yes
     Resolved: !!bool Yes
-    Parent: !!bool Yes
-    Flagged: !!bool Yes
-    Labels: !!bool Yes
     Due Date: !!bool Yes
+    Parent: !!bool Yes
+    Labels: !!bool Yes
     Components: !!bool Yes
     Fixed Versions: !!bool Yes
     Affected Versions: !!bool Yes

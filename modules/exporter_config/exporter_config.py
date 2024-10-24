@@ -89,20 +89,20 @@ class ExporterConfig:
             ExporterConfig.ISSUE_FIELD_NAME__ISSUE_KEY: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__ISSUE_KEY, "key", True, True),
             ExporterConfig.ISSUE_FIELD_NAME__ISSUE_ID: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__ISSUE_ID, "id", True, True),
             ExporterConfig.ISSUE_FIELD_NAME__ISSUE_TYPE: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__ISSUE_TYPE, "issuetype"),
+            ExporterConfig.ISSUE_FIELD_NAME__SUMMARY: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__SUMMARY, "summary"),
             ExporterConfig.ISSUE_FIELD_NAME__REPORTER: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__REPORTER, "reporter"),
             ExporterConfig.ISSUE_FIELD_NAME__ASSIGNEE: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__ASSIGNEE, "assignee"),
-            ExporterConfig.ISSUE_FIELD_NAME__SUMMARY: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__SUMMARY, "summary"),
             ExporterConfig.ISSUE_FIELD_NAME__STATUS: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__STATUS, "status"),
             ExporterConfig.ISSUE_FIELD_NAME__RESOLUTION: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__RESOLUTION, "resolution"),
             ExporterConfig.ISSUE_FIELD_NAME__PRIORITY: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__PRIORITY, "priority"),
             ExporterConfig.ISSUE_FIELD_NAME__CREATED: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__CREATED, "created"),
             ExporterConfig.ISSUE_FIELD_NAME__UPDATED: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__UPDATED, "updated"),
             ExporterConfig.ISSUE_FIELD_NAME__RESOLVED: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__RESOLVED, "resolved"),
-            ExporterConfig.ISSUE_FIELD_NAME__LABELS: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__LABELS, "labels"),
+            ExporterConfig.ISSUE_FIELD_NAME__DUE_DATE: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__DUE_DATE, "duedate"),
             ExporterConfig.ISSUE_FIELD_NAME__PARENT: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__PARENT, "parent"),
+            ExporterConfig.ISSUE_FIELD_NAME__LABELS: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__LABELS, "labels"),
             ExporterConfig.ISSUE_FIELD_NAME__ASSIGNEE: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__ASSIGNEE, "assignee"),
             ExporterConfig.ISSUE_FIELD_NAME__FLAGGED: CustomIssueField(ExporterConfig.ISSUE_FIELD_NAME__FLAGGED), # It's a locked custom field that must be defined inside the YAML config file
-            ExporterConfig.ISSUE_FIELD_NAME__DUE_DATE: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__DUE_DATE, "duedate"),
             ExporterConfig.ISSUE_FIELD_NAME__COMPONENTS: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__COMPONENTS, "component"),
             ExporterConfig.ISSUE_FIELD_NAME__FIXED_VERSIONS: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__FIXED_VERSIONS, "fixVersion"),
             ExporterConfig.ISSUE_FIELD_NAME__AFFECTED_VERSIONS: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__AFFECTED_VERSIONS, "affectedVersion")
@@ -146,10 +146,9 @@ class ExporterConfig:
         self,
         value: str
     ):
-        if re.match(r"^https://[\w]+\.atlassian\.net$", value):
+        if re.match(r"^https://[^/]+\.atlassian\.net$", value):
             self.__domain = value
         else:
-            print("LOL!")
             raise ValueError(f"The given domain '{value}' does not fit the pattern 'https://[YOUR-NAME].atlassian.net'. Please check the YAML configuration file.")
         self.__log_attribute(ExporterConfig.YAML__CONNECTION, ExporterConfig.YAML__CONNECTION__DOMAIN, value)
 
