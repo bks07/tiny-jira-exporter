@@ -63,8 +63,10 @@ class IssueParser:
             # That's why we need to use a loop to fetch several pages
             while remaining_max_results > 0:
                 self.__logger.debug(f"Fetch first batch starting from {start_at} with batch size {batch_size}. Remaining max results: {remaining_max_results}.")
+                
                 if batch_size > remaining_max_results:
                     batch_size = remaining_max_results
+                
                 response = self.__jira.search_issues(
                     self.__config.jql_query,
                     fields=self.__config.fields_to_fetch,
