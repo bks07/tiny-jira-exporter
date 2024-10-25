@@ -43,25 +43,31 @@ class ExporterConfig:
     YAML__MISC__STATUS_CATEGORY_PREFIX = "Status Category Prefix"
     YAML__MISC__TIME_ZONE = "Time Zone"
 
+    # Always export
     ISSUE_FIELD_NAME__ISSUE_KEY = "Key"
     ISSUE_FIELD_NAME__ISSUE_ID = "ID"
+    # Descriptive fields
     ISSUE_FIELD_NAME__ISSUE_TYPE = "Type"
     ISSUE_FIELD_NAME__SUMMARY = "Summary"
+    ISSUE_FIELD_NAME__PARENT = "Parent"
+    # User fields
     ISSUE_FIELD_NAME__REPORTER = "Reporter"
     ISSUE_FIELD_NAME__ASSIGNEE = "Assignee"
+    # Status-related fields
     ISSUE_FIELD_NAME__STATUS = "Status"
-    ISSUE_FIELD_NAME__RESOLUTION = "Resolution"
     ISSUE_FIELD_NAME__PRIORITY = "Priority"
+    ISSUE_FIELD_NAME__FLAGGED = "Flagged"
+    ISSUE_FIELD_NAME__RESOLUTION = "Resolution"
+    # Date/time-related fields
     ISSUE_FIELD_NAME__CREATED = "Created"
+    ISSUE_FIELD_NAME__DUE_DATE = "Due Date"
     ISSUE_FIELD_NAME__UPDATED = "Updated"
     ISSUE_FIELD_NAME__RESOLVED = "Resolved"
+    # Label-like fields
     ISSUE_FIELD_NAME__LABELS = "Labels"
-    ISSUE_FIELD_NAME__PARENT = "Parent"
-    ISSUE_FIELD_NAME__FLAGGED = "Flagged"
-    ISSUE_FIELD_NAME__DUE_DATE = "Due Date"
     ISSUE_FIELD_NAME__COMPONENTS = "Components"
-    ISSUE_FIELD_NAME__FIXED_VERSIONS = "Fixed Versions"
     ISSUE_FIELD_NAME__AFFECTED_VERSIONS = "Affected Versions"
+    ISSUE_FIELD_NAME__FIXED_VERSIONS = "Fixed Versions"
 
     DECIMAL_SEPARATOR_POINT = "Point"
     DECIMAL_SEPARATOR_COMMA = "Comma"
@@ -86,26 +92,31 @@ class ExporterConfig:
 
         # Properties for issue field export
         self.__issue_fields: dict = {
+            # Always export
             ExporterConfig.ISSUE_FIELD_NAME__ISSUE_KEY: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__ISSUE_KEY, "key", True, True),
             ExporterConfig.ISSUE_FIELD_NAME__ISSUE_ID: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__ISSUE_ID, "id", True, True),
+            # Descriptive fields
             ExporterConfig.ISSUE_FIELD_NAME__ISSUE_TYPE: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__ISSUE_TYPE, "issuetype"),
             ExporterConfig.ISSUE_FIELD_NAME__SUMMARY: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__SUMMARY, "summary"),
+            ExporterConfig.ISSUE_FIELD_NAME__PARENT: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__PARENT, "parent"),
+            # User fields
             ExporterConfig.ISSUE_FIELD_NAME__REPORTER: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__REPORTER, "reporter"),
             ExporterConfig.ISSUE_FIELD_NAME__ASSIGNEE: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__ASSIGNEE, "assignee"),
+            # Status-related fields
             ExporterConfig.ISSUE_FIELD_NAME__STATUS: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__STATUS, "status"),
-            ExporterConfig.ISSUE_FIELD_NAME__RESOLUTION: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__RESOLUTION, "resolution"),
             ExporterConfig.ISSUE_FIELD_NAME__PRIORITY: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__PRIORITY, "priority"),
+            ExporterConfig.ISSUE_FIELD_NAME__FLAGGED: CustomIssueField(ExporterConfig.ISSUE_FIELD_NAME__FLAGGED), # It's a locked custom field that must be defined inside the YAML config file
+            ExporterConfig.ISSUE_FIELD_NAME__RESOLUTION: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__RESOLUTION, "resolution"),
+            # Date/time-related fields
             ExporterConfig.ISSUE_FIELD_NAME__CREATED: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__CREATED, "created"),
+            ExporterConfig.ISSUE_FIELD_NAME__DUE_DATE: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__DUE_DATE, "duedate"),
             ExporterConfig.ISSUE_FIELD_NAME__UPDATED: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__UPDATED, "updated"),
             ExporterConfig.ISSUE_FIELD_NAME__RESOLVED: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__RESOLVED, "resolved"),
-            ExporterConfig.ISSUE_FIELD_NAME__DUE_DATE: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__DUE_DATE, "duedate"),
-            ExporterConfig.ISSUE_FIELD_NAME__PARENT: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__PARENT, "parent"),
-            ExporterConfig.ISSUE_FIELD_NAME__LABELS: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__LABELS, "labels"),
-            ExporterConfig.ISSUE_FIELD_NAME__ASSIGNEE: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__ASSIGNEE, "assignee"),
-            ExporterConfig.ISSUE_FIELD_NAME__FLAGGED: CustomIssueField(ExporterConfig.ISSUE_FIELD_NAME__FLAGGED), # It's a locked custom field that must be defined inside the YAML config file
+            # Label-like fields
+            ExporterConfig.ISSUE_FIELD_NAME__LABELS: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__LABELS, "labels"),            
             ExporterConfig.ISSUE_FIELD_NAME__COMPONENTS: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__COMPONENTS, "component"),
-            ExporterConfig.ISSUE_FIELD_NAME__FIXED_VERSIONS: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__FIXED_VERSIONS, "fixVersion"),
-            ExporterConfig.ISSUE_FIELD_NAME__AFFECTED_VERSIONS: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__AFFECTED_VERSIONS, "affectedVersion")
+            ExporterConfig.ISSUE_FIELD_NAME__AFFECTED_VERSIONS: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__AFFECTED_VERSIONS, "affectedVersion"),
+            ExporterConfig.ISSUE_FIELD_NAME__FIXED_VERSIONS: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__FIXED_VERSIONS, "fixVersion")
         }
         self.__standard_field_prefix: str = ""
         self.__custom_field_prefix: str = ""
