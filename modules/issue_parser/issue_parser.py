@@ -64,9 +64,11 @@ class IssueParser:
             while remaining_max_results > 0:
                 self.__logger.debug(f"Fetch first batch starting from {start_at} with batch size {batch_size}. Remaining max results: {remaining_max_results}.")
                 
+                # Only fetch as much as previously defined
                 if batch_size > remaining_max_results:
                     batch_size = remaining_max_results
                 
+                # Call Jira to fetch issues
                 response = self.__jira.search_issues(
                     self.__config.jql_query,
                     fields=self.__config.fields_to_fetch,
@@ -75,6 +77,10 @@ class IssueParser:
                 )
                 self.__issues.extend(response)
                 
+                # Stop fetching when there are no more issues to fetch
+                if len(response) < batch_size:
+                    break
+
                 start_at += batch_size
                 remaining_max_results -= batch_size
 

@@ -80,7 +80,7 @@ class Workflow:
         :rtype: str
         """
         if status not in self.statuses:
-            raise ValueError("Unable to get status category. Status not defined.")
+            raise ValueError(f"Unable to get status category. Status '{status}' not defined inside YAML configuration file.")
         return self.__status_category_mapping[status]
 
 
@@ -100,7 +100,7 @@ class Workflow:
         :rtype: int
         """
         if category not in self.categories:
-            raise ValueError("Unable to get status category. Category not defined.")
+            raise ValueError(f"Unable to get status category. Category '{category}' not defined inside YAML configuration file.")
         return int(self.categories.index(category))
 
 
