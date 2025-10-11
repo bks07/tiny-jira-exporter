@@ -2,7 +2,8 @@
 
 import math
 import chardet
-from jira import JIRA
+#from jira import JIRA
+from atlassian import Jira
 import pandas as pd
 
 from modules.exporter_config.exporter_config import ExporterConfig
@@ -27,7 +28,11 @@ class IssueParser:
     ):
         self.__config: ExporterConfig = config
         self.__logger: object = logger
-        self.__jira: JIRA = JIRA(config.domain, basic_auth=(config.username, config.api_token))
+        self.__jira: Jira = Jira(
+            url = config.domain,
+            username = config.username,
+            password = config.api_token,
+            cloud = True)
         self.__issues: list = []
         self.__parsed_data: list = []
         self.__shall_pretty_print: bool = pretty_print
@@ -69,16 +74,11 @@ class IssueParser:
                     batch_size = remaining_max_results
                 
                 # Call Jira to fetch issues
-                response = self.__jira.search_issues(
-                    self.__config.jql_query,
-                    fields=self.__config.fields_to_fetch,
-                    startAt=start_at,
-                    maxResults=batch_size
-                )
-                self.__issues.extend(response)
+                self.__issues = self.__jira.jql(self.__config.jql_query)
+                print(self.__issues)
                 
                 # Stop fetching when there are no more issues to fetch
-                if len(response) < batch_size:
+                if len(self.__issues) < batch_size:
                     break
 
                 start_at += batch_size
