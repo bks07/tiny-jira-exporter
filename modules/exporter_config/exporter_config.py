@@ -111,12 +111,12 @@ class ExporterConfig:
             ExporterConfig.ISSUE_FIELD_NAME__CREATED: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__CREATED, "created"),
             ExporterConfig.ISSUE_FIELD_NAME__DUE_DATE: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__DUE_DATE, "duedate"),
             ExporterConfig.ISSUE_FIELD_NAME__UPDATED: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__UPDATED, "updated"),
-            ExporterConfig.ISSUE_FIELD_NAME__RESOLVED: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__RESOLVED, "resolved"),
+            ExporterConfig.ISSUE_FIELD_NAME__RESOLVED: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__RESOLVED, "resolutiondate"),
             # Label-like fields
             ExporterConfig.ISSUE_FIELD_NAME__LABELS: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__LABELS, "labels"),            
-            ExporterConfig.ISSUE_FIELD_NAME__COMPONENTS: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__COMPONENTS, "component"),
-            ExporterConfig.ISSUE_FIELD_NAME__AFFECTED_VERSIONS: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__AFFECTED_VERSIONS, "affectedVersion"),
-            ExporterConfig.ISSUE_FIELD_NAME__FIXED_VERSIONS: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__FIXED_VERSIONS, "fixVersion")
+            ExporterConfig.ISSUE_FIELD_NAME__COMPONENTS: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__COMPONENTS, "components"),
+            ExporterConfig.ISSUE_FIELD_NAME__AFFECTED_VERSIONS: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__AFFECTED_VERSIONS, "versions"),
+            ExporterConfig.ISSUE_FIELD_NAME__FIXED_VERSIONS: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__FIXED_VERSIONS, "fixVersions")
         }
         self.__standard_field_prefix: str = ""
         self.__custom_field_prefix: str = ""
