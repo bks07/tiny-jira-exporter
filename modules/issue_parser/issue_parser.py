@@ -2,9 +2,9 @@
 
 import math
 import chardet
-#from jira import JIRA
 from atlassian import Jira
-import json
+from datetime import datetime
+import pytz
 import pandas as pd
 
 from modules.exporter_config.exporter_config import ExporterConfig
@@ -186,7 +186,7 @@ class IssueParser:
                             issue_data[standard_field_column_name] = self.__parse_field_value(self.__transform_date(issue_fields['updated']))
 
                         case ExporterConfig.ISSUE_FIELD_NAME__RESOLVED:
-                            issue_data[standard_field_column_name] = self.__parse_field_optional_date(issue_fields['resolutiondate'])
+                            issue_data[standard_field_column_name] = self.__transform_date(issue_fields['resolutiondate'])
 
                         case ExporterConfig.ISSUE_FIELD_NAME__PARENT:
                             if hasattr(issue_fields, "parent") and issue_fields['parent'] is not None:
@@ -197,7 +197,7 @@ class IssueParser:
                             issue_data[standard_field_column_name] = self.__parse_field_labels(issue_fields['labels'])
 
                         case ExporterConfig.ISSUE_FIELD_NAME__DUE_DATE:
-                            issue_data[standard_field_column_name] = self.__parse_field_optional_date(issue_fields['duedate'])
+                            issue_data[standard_field_column_name] = self.__transform_date(issue_fields['duedate'])
 
                         case ExporterConfig.ISSUE_FIELD_NAME__COMPONENTS:
                             issue_data[standard_field_column_name] = self.__parse_versions(issue_fields['components']) # The component field is similar to a version field 
@@ -238,7 +238,7 @@ class IssueParser:
         
         try:
             df = pd.DataFrame.from_dict(self.__parsed_data)
-            df.to_csv(file_location, index=False, sep=";", encoding="latin-1")
+            df.to_csv(file_location, index=False, sep=";", encoding="utf-8")
             
             if self.__shall_pretty_print:
                 print(" ... done.")
@@ -295,25 +295,6 @@ class IssueParser:
                 return_string +=  version['name'] + "'|'"
             return_string = return_string[:-2]
         return self.__parse_field_value(return_string)
-    
-
-    def __parse_field_optional_date(
-        self,
-        date: str
-    ) -> str:
-        """
-        Checks if the date is set. If so, returns it in an appropriate format.
-
-        :param date: The list of labels
-        :type date: str
-
-        :return: Returns a proper formatted date string or an empty sting.
-        :rtype: str
-        """
-        return_string = ""
-        if date != None and len(str(date)) > 0:
-            return_string = date
-        return self.__parse_field_value(self.__transform_date(return_string))
 
         
     def __parse_field_flagged(
@@ -426,7 +407,7 @@ class IssueParser:
             for category_index in range(category_start_status_index, category_destination_status_index):
                 self.__logger.debug(f"Set date {date} for category: {category_index+1}")
                 column_name: str = self.__config.status_category_prefix + self.__config.workflow.categories[category_index+1]
-                category_dates[column_name] = date
+                category_dates[column_name] = self.__transform_date(date)
         # The case, when an issue has moved backward to a previous category
         else:
             for category_index in range(category_destination_status_index, category_start_status_index):
@@ -468,11 +449,12 @@ class IssueParser:
             # Make sure that special chars are working (TODO: not working atm)
             # Check if encoding was detected
             character_set = chardet.detect(value.encode())
-            if character_set["encoding"]:
-                encoded_string = value.encode(character_set["encoding"], errors="strict")
-                return_string = encoded_string.decode("latin-1")
+            if character_set["encoding"] != "utf-8":
+                encoded_string = value.encode(character_set["encoding"])
+                return_string = encoded_string.decode("utf-8", errors="replace")
+                self.__logger.debug(f"Changed encofing from {character_set["encoding"]} to uft-8 for string: {value}")
             else:
-                raise Exception("Encoding detection for string failed.")
+                raise Exception(f"Encoding detection for string failed. String: {value}")
 
         elif isinstance(value, float):
             match self.__config.decimal_separator:
@@ -504,12 +486,23 @@ class IssueParser:
         :return: The date only following YYYY-MM-DD
         :rtype: str
         """
-        #import pytz
-        #if timezone_str in pytz.all_timezones:
-        #    ...
-        #else:
-        #    raise ValueError("Invalid timezone string!")
-        return timestamp[0:10]
+        if timestamp is None or len(str(timestamp)) == 0:
+            return ""
+
+        # Parse the string into a datetime object
+        dt = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%f%z")
+
+        if dt:
+            # Convert to another timezone (e.g., US/Pacific)
+            target_timezone = pytz.timezone("Europe/Berlin")
+            dt_converted = dt.astimezone(target_timezone)
+
+            # Format to YYYY-MM-DD
+            date_only = dt_converted.strftime("%Y-%m-%d")
+        else:
+            raise Exception("Invalid format for timestamp.")
+        
+        return date_only
 
 
     def __display_progress_bar(

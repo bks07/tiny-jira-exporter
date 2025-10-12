@@ -4,23 +4,24 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.1.1] - 2025-10-12
 
 ### Added
 
-- Added a changelog
+- Changes will now be documented inside CHANGELOG.md
 
 ### Fixed
 
-- ...
+- Jira API has changed to v3 (SKSD-59)
 
 ### Changed
 
-- ...
+- Using 'atlassian-pyton-api' module instead of 'JIRA' module
+- Date formatting now uses 'datetime' and 'pytz' modules
 
 ### Removed
 
-- ...
+- None
 
 ## [0.1.0] - 2024-10-25
 
