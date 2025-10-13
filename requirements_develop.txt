@@ -1,4 +1,6 @@
 chardet
-jira
+atlassian-python-api
 pandas
 PyYAML
+datetime
+pytz

@@ -55,7 +55,8 @@ Any further configuration is done inside the YAML file.
 
 ## Configuration
 The best start to configure your export is to copy the file _default.yaml_, rename the copied file, and change its contents to your needs.
-I will describe the sections of the YAML configuration file in the following. Please note that whenever the script adds new features, the configuration file may change as well. However, I try to ensure backward compatibility.
+I will describe the sections of the YAML configuration file in the following. Please note that whenever the script adds new features, the configuration file may change as well.
+However, I try to ensure backward compatibility.
 
 ### Connection
 Specify your domain, username, and API token to grant access to your Jira instance.
@@ -96,7 +97,8 @@ Currently, the script supports the export of the following standard issue fields
 * Fixed Versions
 * Affected Versions
 
-To disable the export of a given field, you can delete the lines, comment them out, or set them to No. The least is the recommended method.
+To disable the export of a given field, you can delete the lines, comment them out, or set them to No.
+The least is the recommended method.
 ```yaml
 Standard Issue Fields:
     Reporter: !!bool Yes # will be exported
@@ -111,6 +113,12 @@ Custom Issue Fields:
     story-point-estimates: customfield_10016
 ```
 Please check the correct IDs like _customfield\_xxxxx_.
+The recommended way of identifying the ID of a custom issue field is by using the API.
+You can access all field definitions by using the following link:
+```javascript
+https://YOUR-NAME.atlassian.net/rest/api/3/field
+```
+However, there is another way to get the ID.
 Inside Jira, navigate to _"Cog item > Issues > Custom Fields"_.
 Search for the custom field you are interested in.
 Then, click on the three dots at the very right in the row of the custom field and select _"View field information"_.

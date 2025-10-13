@@ -102,7 +102,7 @@ class IssueParser:
             issue_summary = self.__parse_field_value(issue_fields['summary'])
 
             # Get the default values of an issue that are available for each export
-            issue_creation_date = self.__parse_field_value(self.__transform_date(issue_fields['created']))
+            issue_creation_date = self.__parse_field_value(self.__check_datetime(issue_fields['created']))
 
             if self.__shall_pretty_print:
                 self.__display_progress_bar(number_of_issues, i, issue_id, issue_key, issue_summary)
@@ -183,10 +183,10 @@ class IssueParser:
                             issue_data[standard_field_column_name] = issue_creation_date
                         
                         case ExporterConfig.ISSUE_FIELD_NAME__UPDATED:
-                            issue_data[standard_field_column_name] = self.__parse_field_value(self.__transform_date(issue_fields['updated']))
+                            issue_data[standard_field_column_name] = self.__parse_field_value(self.__check_datetime(issue_fields['updated']))
 
                         case ExporterConfig.ISSUE_FIELD_NAME__RESOLVED:
-                            issue_data[standard_field_column_name] = self.__transform_date(issue_fields['resolutiondate'])
+                            issue_data[standard_field_column_name] = self.__check_datetime(issue_fields['resolutiondate'])
 
                         case ExporterConfig.ISSUE_FIELD_NAME__PARENT:
                             if hasattr(issue_fields, "parent") and issue_fields['parent'] is not None:
@@ -197,7 +197,7 @@ class IssueParser:
                             issue_data[standard_field_column_name] = self.__parse_field_labels(issue_fields['labels'])
 
                         case ExporterConfig.ISSUE_FIELD_NAME__DUE_DATE:
-                            issue_data[standard_field_column_name] = self.__transform_date(issue_fields['duedate'])
+                            issue_data[standard_field_column_name] = self.__check_date(issue_fields['duedate'])
 
                         case ExporterConfig.ISSUE_FIELD_NAME__COMPONENTS:
                             issue_data[standard_field_column_name] = self.__parse_versions(issue_fields['components']) # The component field is similar to a version field 
@@ -349,10 +349,8 @@ class IssueParser:
             else:
                 categories[column_name] = None
 
-        # Crawl through all changelogs of an issue
+        # Crawl through all status changes of an issue
         status_changelog = reversed(self.__jira.get_issue_status_changelog(issue_id))
-        print(status_changelog)
-        #changelogs = self.__jira.issue(issue_id, expand="changelog").changelog.histories
         for transition in status_changelog:
             # Add the transition information to a list first
             # since it is returned in descending sort order
@@ -407,7 +405,7 @@ class IssueParser:
             for category_index in range(category_start_status_index, category_destination_status_index):
                 self.__logger.debug(f"Set date {date} for category: {category_index+1}")
                 column_name: str = self.__config.status_category_prefix + self.__config.workflow.categories[category_index+1]
-                category_dates[column_name] = self.__transform_date(date)
+                category_dates[column_name] = self.__check_datetime(date)
         # The case, when an issue has moved backward to a previous category
         else:
             for category_index in range(category_destination_status_index, category_start_status_index):
@@ -472,9 +470,24 @@ class IssueParser:
         return return_string
 
 
-    def __transform_date(
+    def __check_date(
         self,
         timestamp:str
+    ) -> str:
+        return self.__transform_datetime(timestamp, "%Y-%m-%d")
+        
+
+    def __check_datetime(
+        self,
+        timestamp:str
+    ) -> str:
+        return self.__transform_datetime(timestamp, "%Y-%m-%dT%H:%M:%S.%f%z")
+
+
+    def __transform_datetime(
+        self,
+        timestamp:str,
+        pattern:str
     ) -> str:
         """
         A simple helper method that strips the all time information from a date filed (datetime to date only).
@@ -482,6 +495,8 @@ class IssueParser:
 
         :param timestamp: A timestamp that contains a date like YYYY-MM-DD
         :type timestamp: str
+        :param pattern: A pattern to parse and verify the given date
+        :type pattern: str
 
         :return: The date only following YYYY-MM-DD
         :rtype: str

@@ -12,11 +12,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- None
+- 'requirements.txt' and 'requirements_develop.txt' were not updated
 
 ### Changed
 
-- None
+- Added to README.md how to get custom field ids via API
 
 ### Removed
 
