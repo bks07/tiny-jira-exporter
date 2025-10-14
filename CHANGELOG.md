@@ -8,15 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- None
+- Time zone is now used for all date/datetime fields (SKSD-8)
 
 ### Fixed
 
-- 'requirements.txt' and 'requirements_develop.txt' were not updated
+- 'requirements.txt' and 'requirements_develop.txt' are now up to date
+- TJE breaks when parsing due date (SKSD-60)
+- TJE shows meaningless info message while exporting (SKSD-61)
 
 ### Changed
 
 - Added to README.md how to get custom field ids via API
+- Applied many recommendations by Copilot
 
 ### Removed
 

@@ -21,6 +21,9 @@ class IssueParser:
     :param logger: The logger for debugging purposes
     :type logger: object
     """
+    DATE_PATTERN_FULL = "%Y-%m-%dT%H:%M:%S.%f%z"
+    DATE_PATTERN_DATE_ONLY = "%Y-%m-%d"
+
     def __init__(
         self,
         config: ExporterConfig,
@@ -102,7 +105,7 @@ class IssueParser:
             issue_summary = self.__parse_field_value(issue_fields['summary'])
 
             # Get the default values of an issue that are available for each export
-            issue_creation_date = self.__parse_field_value(self.__check_datetime(issue_fields['created']))
+            issue_creation_date = self.__parse_field_value(self.__timestamp_to_date(issue_fields['created'], IssueParser.DATE_PATTERN_FULL))
 
             if self.__shall_pretty_print:
                 self.__display_progress_bar(number_of_issues, i, issue_id, issue_key, issue_summary)
@@ -183,10 +186,10 @@ class IssueParser:
                             issue_data[standard_field_column_name] = issue_creation_date
                         
                         case ExporterConfig.ISSUE_FIELD_NAME__UPDATED:
-                            issue_data[standard_field_column_name] = self.__parse_field_value(self.__check_datetime(issue_fields['updated']))
+                            issue_data[standard_field_column_name] = self.__parse_field_value(self.__timestamp_to_date(issue_fields['updated'], IssueParser.DATE_PATTERN_FULL))
 
                         case ExporterConfig.ISSUE_FIELD_NAME__RESOLVED:
-                            issue_data[standard_field_column_name] = self.__check_datetime(issue_fields['resolutiondate'])
+                            issue_data[standard_field_column_name] = self.__parse_field_value(self.__timestamp_to_date(issue_fields['resolutiondate'], IssueParser.DATE_PATTERN_FULL))
 
                         case ExporterConfig.ISSUE_FIELD_NAME__PARENT:
                             if hasattr(issue_fields, "parent") and issue_fields['parent'] is not None:
@@ -197,7 +200,7 @@ class IssueParser:
                             issue_data[standard_field_column_name] = self.__parse_field_labels(issue_fields['labels'])
 
                         case ExporterConfig.ISSUE_FIELD_NAME__DUE_DATE:
-                            issue_data[standard_field_column_name] = self.__check_date(issue_fields['duedate'])
+                            issue_data[standard_field_column_name] = self.__parse_field_value(self.__timestamp_to_date(issue_fields['duedate'], IssueParser.DATE_PATTERN_DATE_ONLY))
 
                         case ExporterConfig.ISSUE_FIELD_NAME__COMPONENTS:
                             issue_data[standard_field_column_name] = self.__parse_versions(issue_fields['components']) # The component field is similar to a version field 
@@ -310,7 +313,7 @@ class IssueParser:
         :return: 'False' or 'True' as string
         :rtype: str
         """
-        return value is not None
+        return str(value is not None)
 
 
     ######################
@@ -405,7 +408,7 @@ class IssueParser:
             for category_index in range(category_start_status_index, category_destination_status_index):
                 self.__logger.debug(f"Set date {date} for category: {category_index+1}")
                 column_name: str = self.__config.status_category_prefix + self.__config.workflow.categories[category_index+1]
-                category_dates[column_name] = self.__check_datetime(date)
+                category_dates[column_name] = self.__parse_field_value(self.__timestamp_to_date(date, IssueParser.DATE_PATTERN_FULL).strftime(IssueParser.DATE_PATTERN_DATE_ONLY))
         # The case, when an issue has moved backward to a previous category
         else:
             for category_index in range(category_destination_status_index, category_start_status_index):
@@ -447,12 +450,16 @@ class IssueParser:
             # Make sure that special chars are working (TODO: not working atm)
             # Check if encoding was detected
             character_set = chardet.detect(value.encode())
-            if character_set["encoding"] != "utf-8":
-                encoded_string = value.encode(character_set["encoding"])
-                return_string = encoded_string.decode("utf-8", errors="replace")
-                self.__logger.debug(f"Changed encofing from {character_set["encoding"]} to uft-8 for string: {value}")
+            if character_set["encoding"] and character_set["encoding"].lower() != "utf-8":
+                try:
+                    encoded_string = value.encode(character_set["encoding"])
+                    return_string = encoded_string.decode("utf-8", errors="replace")
+                    self.__logger.debug(f"Changed encoding from {character_set['encoding']} to utf-8 for string: {value}")
+                except Exception as e:
+                    self.__logger.warning(f"Encoding conversion failed for string: {value}. Error: {e}")
+                    return_string = value
             else:
-                raise Exception(f"Encoding detection for string failed. String: {value}")
+                return_string = value
 
         elif isinstance(value, float):
             match self.__config.decimal_separator:
@@ -470,29 +477,14 @@ class IssueParser:
         return return_string
 
 
-    def __check_date(
-        self,
-        timestamp:str
-    ) -> str:
-        return self.__transform_datetime(timestamp, "%Y-%m-%d")
-        
-
-    def __check_datetime(
-        self,
-        timestamp:str
-    ) -> str:
-        return self.__transform_datetime(timestamp, "%Y-%m-%dT%H:%M:%S.%f%z")
-
-
-    def __transform_datetime(
+    def __timestamp_to_date(
         self,
         timestamp:str,
         pattern:str
     ) -> str:
         """
         A simple helper method that strips the all time information from a date filed (datetime to date only).
-        TODO: Must be implemented to support user configured date formats as well as matching the correct time zone.
-
+        
         :param timestamp: A timestamp that contains a date like YYYY-MM-DD
         :type timestamp: str
         :param pattern: A pattern to parse and verify the given date
@@ -505,19 +497,16 @@ class IssueParser:
             return ""
 
         # Parse the string into a datetime object
-        dt = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%f%z")
+        dt = datetime.strptime(timestamp, pattern)
 
         if dt:
             # Convert to another timezone (e.g., US/Pacific)
-            target_timezone = pytz.timezone("Europe/Berlin")
-            dt_converted = dt.astimezone(target_timezone)
-
-            # Format to YYYY-MM-DD
-            date_only = dt_converted.strftime("%Y-%m-%d")
+            target_time_zone = pytz.timezone(self.__config.time_zone)
+            dt_converted = dt.astimezone(target_time_zone)
         else:
             raise Exception("Invalid format for timestamp.")
         
-        return date_only
+        return dt_converted
 
 
     def __display_progress_bar(

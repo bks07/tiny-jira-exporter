@@ -265,7 +265,7 @@ class ExporterConfig:
         value: str
     ) -> None:
         self.__custom_field_prefix = value
-        self.__log_attribute(ExporterConfig.YAML__MISC, ExporterConfig.YAML__MISC__STANDARD_FIELD_PREFIX, str(value))
+        self.__log_attribute(ExporterConfig.YAML__MISC, ExporterConfig.YAML__MISC__CUSTOM_FIELD_PREFIX, str(value))
 
     # Properties for workflow timestamp export
 
@@ -518,7 +518,7 @@ class ExporterConfig:
         """
         jql_query = issue_field + " IN("
         for value in values:
-            jql_query += value + ", "
+            jql_query += "'" + value + "', "
         jql_query = jql_query[:-2] + ")"
         
         return jql_query
@@ -557,16 +557,22 @@ class ExporterConfig:
         date_string: str
     ) -> bool:
         """
-        Checks if the date format of an date attribute is correct.
+        Checks if the date format of a date attribute is correct.
         That means it follows the format YYYY-MM-DD.
 
         :param date_string: The date string from the YAML configuration file
         :type date_string: str
 
-        :return: True if the date format is correct
+        :raise ValueError: If the date format is incorrect
+
+        :return: True if the date format is correct, False otherwise
         :rtype: bool
         """
-        return bool(datetime.datetime.strptime(str(date_string), "%Y-%m-%d"))
+        try:
+            datetime.datetime.strptime(str(date_string), "%Y-%m-%d")
+            return True
+        except (ValueError, TypeError):
+            return False
     
 
     def __log_attribute(

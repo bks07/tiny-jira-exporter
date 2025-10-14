@@ -75,7 +75,7 @@ class IssueField:
         return self.__shall_export_to_csv
     
     @shall_export_to_csv.setter
-    def export_to_csv(
+    def shall_export_to_csv(
         self,
         value: bool
     ):

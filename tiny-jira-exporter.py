@@ -30,27 +30,27 @@ def main():
         if csv_output_file_location == None or csv_output_file_location == "":
             csv_output_file_location = DEFAULT_OUTPUT_FILE
 
-        logging.basicConfig()
+        # Remove all handlers from the logger in a safe way
         logger = logging.getLogger(__name__)
-        
-        # Remove all existing default handlers
-        logger.handlers = []
+        for handler in logger.handlers[:]:
+            logger.removeHandler(handler)
+        logger.setLevel(logging.CRITICAL)
         
         log_level = DISABLE_LOGGING
         shall_pretty_print: bool = True
         match str(args.loglevel):
-                case "debug":
-                    log_level = logging.DEBUG # most verbose
-                case "info":
-                    log_level = logging.INFO
-                case "warning":
-                    log_level = logging.WARNING
-                case "error":
-                    log_level = logging.ERROR
-                case "critical":
-                    log_level = logging.CRITICAL # least verbose
-                case _: # "off" for off or anything else
-                    log_level = DISABLE_LOGGING # don't log anything
+            case "debug":
+                log_level = logging.DEBUG # most verbose
+            case "info":
+                log_level = logging.INFO
+            case "warning":
+                log_level = logging.WARNING
+            case "error":
+                log_level = logging.ERROR
+            case "critical":
+                log_level = logging.CRITICAL # least verbose
+            case _: # "off" for off or anything else
+                log_level = DISABLE_LOGGING # don't log anything
 
         if log_level == DISABLE_LOGGING:
             logger.addHandler(logging.NullHandler())
@@ -59,7 +59,7 @@ def main():
             console_handler = logging.StreamHandler()
             formatter = logging.Formatter('%(asctime)s :: %(levelname)s :: %(message)s')
             console_handler.setFormatter(formatter)
-            # logger.addHandler(console_handler)
+            logger.addHandler(console_handler)
             logger.setLevel(log_level)
             # Set pretty print to false since the console logger is enable
             shall_pretty_print = False

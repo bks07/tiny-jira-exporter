@@ -18,7 +18,7 @@ class CustomIssueField(IssueField):
         shall_fetch: bool = False,
         shall_export_to_csv: bool = False
     ):
-        self.__id: str = ""
+        #self.__id: str = ""
         super().__init__(name, "", shall_fetch, shall_export_to_csv)
 
 

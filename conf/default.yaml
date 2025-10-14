@@ -82,4 +82,4 @@ Misc:
     Standard Field Prefix: "std::" # Recommended to avoid confusion with other fields
     Custom Field Prefix: "cst::" # Recommended to avoid confusion with other fields
     Status Category Prefix: "cat::" # Recommended to avoid confusion whith other fields
-    Time Zone: Europe/Berlin # Not used yet
+    Time Zone: Europe/Berlin # Set a time zone accoring to pytz.all_timezones, e.g. Europe/Berlin, US/Pacific, Asia/Tokyo
