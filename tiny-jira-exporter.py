@@ -53,15 +53,16 @@ def main():
                 log_level = DISABLE_LOGGING # don't log anything
 
         if log_level == DISABLE_LOGGING:
-            logger.addHandler(logging.NullHandler())
-            logger.setLevel(logging.CRITICAL)
+            # disable all logging
+            logging.disable(logging.CRITICAL)
         else:
+            logging.disable(logging.NOTSET)
             console_handler = logging.StreamHandler()
             formatter = logging.Formatter('%(asctime)s :: %(levelname)s :: %(message)s')
             console_handler.setFormatter(formatter)
             logger.addHandler(console_handler)
             logger.setLevel(log_level)
-            # Set pretty print to false since the console logger is enable
+            # Set pretty print to false since the console logger is enabled
             shall_pretty_print = False
             logger.debug("Pretty print has been disabled. Logger takes over.")
 

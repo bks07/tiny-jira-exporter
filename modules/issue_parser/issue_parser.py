@@ -8,9 +8,6 @@ import pytz
 import pandas as pd
 
 from modules.exporter_config.exporter_config import ExporterConfig
-from modules.exporter_config.issue_field import IssueField
-from modules.exporter_config.standard_issue_field import StandardIssueField
-from modules.exporter_config.custom_issue_field import CustomIssueField
 
 class IssueParser:
     """
@@ -119,7 +116,7 @@ class IssueParser:
                 custom_field_column_name = self.__config.custom_field_prefix + field.name
                 standard_field_column_name = self.__config.standard_field_prefix + field.name
 
-                if isinstance(field, CustomIssueField):
+                if field.is_custom_field:
                     
                     match field.name:
                         case ExporterConfig.ISSUE_FIELD_NAME__FLAGGED:
@@ -137,7 +134,7 @@ class IssueParser:
                             else:
                                 issue_data[custom_field_column_name] = self.__parse_field_value(issue_fields[field.id])
 
-                elif isinstance(field, StandardIssueField):
+                else:
                     
 
                     match field.name:
@@ -408,7 +405,8 @@ class IssueParser:
             for category_index in range(category_start_status_index, category_destination_status_index):
                 self.__logger.debug(f"Set date {date} for category: {category_index+1}")
                 column_name: str = self.__config.status_category_prefix + self.__config.workflow.categories[category_index+1]
-                category_dates[column_name] = self.__parse_field_value(self.__timestamp_to_date(date, IssueParser.DATE_PATTERN_FULL).strftime(IssueParser.DATE_PATTERN_DATE_ONLY))
+                # __timestamp_to_date returns a YYYY-MM-DD string now
+                category_dates[column_name] = self.__parse_field_value(self.__timestamp_to_date(date, IssueParser.DATE_PATTERN_FULL))
         # The case, when an issue has moved backward to a previous category
         else:
             for category_index in range(category_destination_status_index, category_start_status_index):
@@ -479,8 +477,8 @@ class IssueParser:
 
     def __timestamp_to_date(
         self,
-        timestamp:str,
-        pattern:str
+        timestamp: str,
+        pattern: str
     ) -> str:
         """
         A simple helper method that strips the all time information from a date filed (datetime to date only).
@@ -497,16 +495,29 @@ class IssueParser:
             return ""
 
         # Parse the string into a datetime object
-        dt = datetime.strptime(timestamp, pattern)
+        try:
+            dt = datetime.strptime(str(timestamp), pattern)
+        except Exception:
+            # If parsing fails, return empty string to avoid crashing the whole run
+            self.__logger.debug(f"Failed to parse timestamp '{timestamp}' with pattern '{pattern}'")
+            return ""
 
-        if dt:
-            # Convert to another timezone (e.g., US/Pacific)
-            target_time_zone = pytz.timezone(self.__config.time_zone)
-            dt_converted = dt.astimezone(target_time_zone)
-        else:
-            raise Exception("Invalid format for timestamp.")
-        
-        return dt_converted
+        # Determine target timezone; fallback to UTC when no valid timezone is configured
+        tz_name = self.__config.time_zone if getattr(self.__config, 'time_zone', None) else 'UTC'
+        try:
+            target_time_zone = pytz.timezone(tz_name)
+        except Exception:
+            self.__logger.debug(f"Invalid timezone '{tz_name}', falling back to UTC")
+            target_time_zone = pytz.timezone('UTC')
+
+        # If parsed datetime is naive, assume UTC before converting
+        if dt.tzinfo is None:
+            dt = pytz.UTC.localize(dt)
+
+        dt_converted = dt.astimezone(target_time_zone)
+
+        # Return date-only string
+        return dt_converted.strftime(IssueParser.DATE_PATTERN_DATE_ONLY)
 
 
     def __display_progress_bar(

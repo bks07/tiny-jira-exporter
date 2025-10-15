@@ -4,8 +4,7 @@ import datetime
 import yaml
 import re
 
-from .standard_issue_field import StandardIssueField
-from .custom_issue_field import CustomIssueField
+from .fields.issue_field import IssueField
 from .workflow import Workflow
 
 class ExporterConfig:
@@ -93,30 +92,30 @@ class ExporterConfig:
         # Properties for issue field export
         self.__issue_fields: dict = {
             # Always export
-            ExporterConfig.ISSUE_FIELD_NAME__ISSUE_KEY: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__ISSUE_KEY, "key", True, True),
-            ExporterConfig.ISSUE_FIELD_NAME__ISSUE_ID: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__ISSUE_ID, "id", True, True),
+            ExporterConfig.ISSUE_FIELD_NAME__ISSUE_KEY: IssueField(ExporterConfig.ISSUE_FIELD_NAME__ISSUE_KEY, "key", False, True, True),
+            ExporterConfig.ISSUE_FIELD_NAME__ISSUE_ID: IssueField(ExporterConfig.ISSUE_FIELD_NAME__ISSUE_ID, "id", False, True, True),
             # Descriptive fields
-            ExporterConfig.ISSUE_FIELD_NAME__ISSUE_TYPE: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__ISSUE_TYPE, "issuetype"),
-            ExporterConfig.ISSUE_FIELD_NAME__SUMMARY: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__SUMMARY, "summary"),
-            ExporterConfig.ISSUE_FIELD_NAME__PARENT: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__PARENT, "parent"),
+            ExporterConfig.ISSUE_FIELD_NAME__ISSUE_TYPE: IssueField(ExporterConfig.ISSUE_FIELD_NAME__ISSUE_TYPE, "issuetype"),
+            ExporterConfig.ISSUE_FIELD_NAME__SUMMARY: IssueField(ExporterConfig.ISSUE_FIELD_NAME__SUMMARY, "summary"),
+            ExporterConfig.ISSUE_FIELD_NAME__PARENT: IssueField(ExporterConfig.ISSUE_FIELD_NAME__PARENT, "parent"),
             # User fields
-            ExporterConfig.ISSUE_FIELD_NAME__REPORTER: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__REPORTER, "reporter"),
-            ExporterConfig.ISSUE_FIELD_NAME__ASSIGNEE: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__ASSIGNEE, "assignee"),
+            ExporterConfig.ISSUE_FIELD_NAME__REPORTER: IssueField(ExporterConfig.ISSUE_FIELD_NAME__REPORTER, "reporter"),
+            ExporterConfig.ISSUE_FIELD_NAME__ASSIGNEE: IssueField(ExporterConfig.ISSUE_FIELD_NAME__ASSIGNEE, "assignee"),
             # Status-related fields
-            ExporterConfig.ISSUE_FIELD_NAME__STATUS: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__STATUS, "status"),
-            ExporterConfig.ISSUE_FIELD_NAME__PRIORITY: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__PRIORITY, "priority"),
-            ExporterConfig.ISSUE_FIELD_NAME__FLAGGED: CustomIssueField(ExporterConfig.ISSUE_FIELD_NAME__FLAGGED), # It's a locked custom field that must be defined inside the YAML config file
-            ExporterConfig.ISSUE_FIELD_NAME__RESOLUTION: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__RESOLUTION, "resolution"),
+            ExporterConfig.ISSUE_FIELD_NAME__STATUS: IssueField(ExporterConfig.ISSUE_FIELD_NAME__STATUS, "status"),
+            ExporterConfig.ISSUE_FIELD_NAME__PRIORITY: IssueField(ExporterConfig.ISSUE_FIELD_NAME__PRIORITY, "priority"),
+            ExporterConfig.ISSUE_FIELD_NAME__FLAGGED: IssueField(ExporterConfig.ISSUE_FIELD_NAME__FLAGGED, "", True), # It's a locked custom field that must be defined inside the YAML config file
+            ExporterConfig.ISSUE_FIELD_NAME__RESOLUTION: IssueField(ExporterConfig.ISSUE_FIELD_NAME__RESOLUTION, "resolution"),
             # Date/time-related fields
-            ExporterConfig.ISSUE_FIELD_NAME__CREATED: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__CREATED, "created"),
-            ExporterConfig.ISSUE_FIELD_NAME__DUE_DATE: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__DUE_DATE, "duedate"),
-            ExporterConfig.ISSUE_FIELD_NAME__UPDATED: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__UPDATED, "updated"),
-            ExporterConfig.ISSUE_FIELD_NAME__RESOLVED: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__RESOLVED, "resolutiondate"),
+            ExporterConfig.ISSUE_FIELD_NAME__CREATED: IssueField(ExporterConfig.ISSUE_FIELD_NAME__CREATED, "created"),
+            ExporterConfig.ISSUE_FIELD_NAME__DUE_DATE: IssueField(ExporterConfig.ISSUE_FIELD_NAME__DUE_DATE, "duedate"),
+            ExporterConfig.ISSUE_FIELD_NAME__UPDATED: IssueField(ExporterConfig.ISSUE_FIELD_NAME__UPDATED, "updated"),
+            ExporterConfig.ISSUE_FIELD_NAME__RESOLVED: IssueField(ExporterConfig.ISSUE_FIELD_NAME__RESOLVED, "resolutiondate"),
             # Label-like fields
-            ExporterConfig.ISSUE_FIELD_NAME__LABELS: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__LABELS, "labels"),            
-            ExporterConfig.ISSUE_FIELD_NAME__COMPONENTS: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__COMPONENTS, "components"),
-            ExporterConfig.ISSUE_FIELD_NAME__AFFECTED_VERSIONS: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__AFFECTED_VERSIONS, "versions"),
-            ExporterConfig.ISSUE_FIELD_NAME__FIXED_VERSIONS: StandardIssueField(ExporterConfig.ISSUE_FIELD_NAME__FIXED_VERSIONS, "fixVersions")
+            ExporterConfig.ISSUE_FIELD_NAME__LABELS: IssueField(ExporterConfig.ISSUE_FIELD_NAME__LABELS, "labels"),            
+            ExporterConfig.ISSUE_FIELD_NAME__COMPONENTS: IssueField(ExporterConfig.ISSUE_FIELD_NAME__COMPONENTS, "components"),
+            ExporterConfig.ISSUE_FIELD_NAME__AFFECTED_VERSIONS: IssueField(ExporterConfig.ISSUE_FIELD_NAME__AFFECTED_VERSIONS, "versions"),
+            ExporterConfig.ISSUE_FIELD_NAME__FIXED_VERSIONS: IssueField(ExporterConfig.ISSUE_FIELD_NAME__FIXED_VERSIONS, "fixVersions")
         }
         self.__standard_field_prefix: str = ""
         self.__custom_field_prefix: str = ""
@@ -428,15 +427,15 @@ class ExporterConfig:
                         case ExporterConfig.ISSUE_FIELD_NAME__ISSUE_ID | ExporterConfig.ISSUE_FIELD_NAME__ISSUE_KEY:
                             # Always export the issue key and ID to the CSV file
                             self.issue_fields[name].shall_fetch = True
-                            self.issue_fields[name].export_to_csv = True
+                            self.issue_fields[name].shall_export_to_csv = True
                         case ExporterConfig.ISSUE_FIELD_NAME__SUMMARY | ExporterConfig.ISSUE_FIELD_NAME__STATUS:
                             # Always fetch but export to CSV file is optional
                             self.issue_fields[name].shall_fetch = True
-                            self.issue_fields[name].export_to_csv = bool(export_to_csv)
+                            self.issue_fields[name].shall_export_to_csv = bool(export_to_csv)
                         case _:
                             # Both, fetching and exporting to CSV file are optional
                             self.issue_fields[name].shall_fetch = bool(export_to_csv) # Only fetch, if issue field should be shown in csv file
-                            self.issue_fields[name].export_to_csv = bool(export_to_csv)
+                            self.issue_fields[name].shall_export_to_csv = bool(export_to_csv)
                 else:
                     raise ValueError(f"Unknown standard issue field '{name}' defined in YAML configuration file.")
 
@@ -493,7 +492,8 @@ class ExporterConfig:
         :return: None
         """
         if name not in self.issue_fields.keys():
-            self.issue_fields[name] = CustomIssueField(name, True, True)
+            # create an IssueField marked as custom
+            self.issue_fields[name] = IssueField(name, "", True, True, True)
             self.issue_fields[name].id = id
             self.logger.debug(f"Added custom field '{name}' with id '{id}'.")
         else:
