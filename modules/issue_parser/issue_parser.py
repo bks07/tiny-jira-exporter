@@ -1,5 +1,6 @@
 # coding: utf8
 
+import sys
 import math
 import chardet
 from atlassian import Jira
@@ -8,6 +9,11 @@ import pytz
 import pandas as pd
 
 from modules.exporter_config.exporter_config import ExporterConfig
+from .fields.issue_field_type import IssueFieldType
+from .fields.issue_field_type_factory import IssueFieldTypeFactory
+from .fields.issue_field_type_short_text import IssueFieldTypeShortText
+from .fields.issue_field_type_date import IssueFieldTypeDate
+from .fields.issue_field_type_datetime import IssueFieldTypeDatetime
 
 class IssueParser:
     """
@@ -27,8 +33,9 @@ class IssueParser:
         logger: object,
         pretty_print: bool = False
     ):
-        self.__config: ExporterConfig = config
         self.__logger: object = logger
+        self.__config: ExporterConfig = config
+        self.__fields_to_fetch: list = []
         self.__jira: Jira = Jira(
             url = config.domain,
             username = config.username,
@@ -38,11 +45,80 @@ class IssueParser:
         self.__parsed_data: list = []
         self.__shall_pretty_print: bool = pretty_print
 
+        self.__schema_type_map = {}
+        all_fields = self.__jira.get_all_fields()
+        for field in all_fields:
+            field_id = field.get('id')
+            schema_type = field.get('schema', {}).get('type')
+            
+            # Only store valid fields that have an ID and a schema type
+            if field_id and schema_type:
+                self.__schema_type_map[field_id] = schema_type
+
+        print(self.__schema_type_map)  # Debug print to verify the mapping
+        sys.exit(1)
+
 
     ######################
     ### PUBLIC METHODS ###
     ######################
 
+    def prepare_standard_fields_to_fetch(self) -> None:
+        """
+        Prepare the list of standard Jira issue fields to fetch and export based on configuration.
+
+        :param self: The IssueParser instance containing configuration and state
+        """
+        # Decide for all standard fields
+        for standard_field_name, standard_field_id in ExporterConfig.STANDARD_ISSUE_FIELDS.items():
+            shall_fetch = False
+            shall_export_to_csv = bool(standard_field_name in self.config.standard_issue_fields)
+            
+            if (
+                standard_field_name == ExporterConfig.ISSUE_FIELD_NAME__ISSUE_KEY
+                or standard_field_name == ExporterConfig.ISSUE_FIELD_NAME__ISSUE_ID
+            ):
+                # Always fetch and export issue key and issue id
+                shall_fetch = shall_export_to_csv = True
+            elif standard_field_name == ExporterConfig.ISSUE_FIELD_NAME__SUMMARY:
+                # Always fetch summary for having the info available for the progress bar
+                shall_fetch = True
+            elif standard_field_name == ExporterConfig.ISSUE_FIELD_NAME__FLAGGED:
+                # Always fetch flagged for having the info available for the workflow
+                standard_field_id = self.__config.standard_issue_field_id_flagged
+            
+            self.__prepare_fields_to_fetch(
+                standard_field_name,
+                standard_field_id,
+                shall_fetch,
+                shall_export_to_csv)
+
+
+    def prepare_custom_fields_to_fetch(self) -> None:
+        for custom_field_name, custom_field_id in ExporterConfig.STANDARD_ISSUE_FIELDS.items():
+            self.__prepare_fields_to_fetch(
+                custom_field_name,
+                custom_field_id,
+                True,
+                True)
+
+
+    def __prepare_fields_to_fetch(
+        self,
+        field_name: str,
+        field_id: str,
+        shall_fetch: bool,
+        shall_export_to_csv: bool
+    ):
+        schema_type = self.__schema_type_map.get(field_id)
+        self.__fields_to_fetch.append(IssueFieldTypeFactory.create_field_type(
+            schema_type,
+            field_name,
+            field_id,
+            shall_fetch,
+            shall_export_to_csv
+        ))   
+        
 
     def fetch_issues(
         self
@@ -63,7 +139,7 @@ class IssueParser:
         
         try:
             # Call Jira to fetch issues
-            json_result_string = self.__jira.enhanced_jql(self.__config.jql_query, fields=self.__config.fields_to_fetch)
+            json_result_string = self.__jira.enhanced_jql(self.__config.jql_query, fields=self.__fields_to_fetch)
             self.__issues = json_result_string.get("issues")
 
         except Exception as e:
@@ -84,7 +160,6 @@ class IssueParser:
         :return: None
         """
         self.__logger.debug("Starting to parse issues.")
-
         if self.__shall_pretty_print:
             print("\nParse fetched Jira issues...")
 
@@ -99,7 +174,7 @@ class IssueParser:
 
             self.__logger.debug(f"Start parsing issue {issue_key} ({issue_id}).")
 
-            issue_summary = self.__parse_field_value(issue_fields['summary'])
+            issue_summary = self.__config.issue_fields[ExporterConfig.ISSUE_FIELD_NAME__SUMMARY].get_csv_value(issue_fields['summary'])
 
             # Get the default values of an issue that are available for each export
             issue_creation_date = self.__parse_field_value(self.__timestamp_to_date(issue_fields['created'], IssueParser.DATE_PATTERN_FULL))
@@ -197,7 +272,8 @@ class IssueParser:
                             issue_data[standard_field_column_name] = self.__parse_field_labels(issue_fields['labels'])
 
                         case ExporterConfig.ISSUE_FIELD_NAME__DUE_DATE:
-                            issue_data[standard_field_column_name] = self.__parse_field_value(self.__timestamp_to_date(issue_fields['duedate'], IssueParser.DATE_PATTERN_DATE_ONLY))
+                            issue_data[standard_field_column_name] = self.__config.issue_fields[ExporterConfig.ISSUE_FIELD_NAME__DUE_DATE].get_csv_value(issue_fields['duedate'])
+                            #self.__parse_field_value(self.__timestamp_to_date(issue_fields['duedate'], IssueParser.DATE_PATTERN_DATE_ONLY))
 
                         case ExporterConfig.ISSUE_FIELD_NAME__COMPONENTS:
                             issue_data[standard_field_column_name] = self.__parse_versions(issue_fields['components']) # The component field is similar to a version field 

@@ -4,8 +4,8 @@ import datetime
 import yaml
 import re
 
-from .fields.issue_field import IssueField
 from .workflow import Workflow
+from ..issue_parser.fields.issue_field_type import IssueFieldType
 
 class ExporterConfig:
     """
@@ -39,6 +39,7 @@ class ExporterConfig:
     YAML__MISC = "Misc"
     YAML__MISC__STANDARD_FIELD_PREFIX = "Standard Field Prefix"
     YAML__MISC__CUSTOM_FIELD_PREFIX = "Custom Field Prefix"
+    YAML__MISC__ISSUE_FIELD_ID_POSTFIX = "Issue Field ID Postfix"
     YAML__MISC__STATUS_CATEGORY_PREFIX = "Status Category Prefix"
     YAML__MISC__TIME_ZONE = "Time Zone"
 
@@ -68,6 +69,28 @@ class ExporterConfig:
     ISSUE_FIELD_NAME__AFFECTED_VERSIONS = "Affected Versions"
     ISSUE_FIELD_NAME__FIXED_VERSIONS = "Fixed Versions"
 
+    STANDARD_ISSUE_FIELDS = {
+        ISSUE_FIELD_NAME__ISSUE_KEY: "key",
+        ISSUE_FIELD_NAME__ISSUE_ID: "id",
+        ISSUE_FIELD_NAME__ISSUE_TYPE: "issuetype",
+        ISSUE_FIELD_NAME__SUMMARY: "summary",
+        ISSUE_FIELD_NAME__PARENT: "parent",
+        ISSUE_FIELD_NAME__REPORTER: "reporter",
+        ISSUE_FIELD_NAME__ASSIGNEE: "assignee",
+        ISSUE_FIELD_NAME__STATUS: "status",
+        ISSUE_FIELD_NAME__PRIORITY: "priority",
+        ISSUE_FIELD_NAME__FLAGGED: "",
+        ISSUE_FIELD_NAME__RESOLUTION: "resolution",
+        ISSUE_FIELD_NAME__CREATED: "created",
+        ISSUE_FIELD_NAME__DUE_DATE: "duedate",
+        ISSUE_FIELD_NAME__UPDATED: "updated",
+        ISSUE_FIELD_NAME__RESOLVED: "resolved",
+        ISSUE_FIELD_NAME__LABELS: "labels",
+        ISSUE_FIELD_NAME__COMPONENTS: "components",
+        ISSUE_FIELD_NAME__AFFECTED_VERSIONS: "versions",
+        ISSUE_FIELD_NAME__FIXED_VERSIONS: "fixVersions"
+    }
+
     DECIMAL_SEPARATOR_POINT = "Point"
     DECIMAL_SEPARATOR_COMMA = "Comma"
 
@@ -90,35 +113,13 @@ class ExporterConfig:
         self.__max_results: int = 100
 
         # Properties for issue field export
-        self.__issue_fields: dict = {
-            # Always export
-            ExporterConfig.ISSUE_FIELD_NAME__ISSUE_KEY: IssueField(ExporterConfig.ISSUE_FIELD_NAME__ISSUE_KEY, "key", False, True, True),
-            ExporterConfig.ISSUE_FIELD_NAME__ISSUE_ID: IssueField(ExporterConfig.ISSUE_FIELD_NAME__ISSUE_ID, "id", False, True, True),
-            # Descriptive fields
-            ExporterConfig.ISSUE_FIELD_NAME__ISSUE_TYPE: IssueField(ExporterConfig.ISSUE_FIELD_NAME__ISSUE_TYPE, "issuetype"),
-            ExporterConfig.ISSUE_FIELD_NAME__SUMMARY: IssueField(ExporterConfig.ISSUE_FIELD_NAME__SUMMARY, "summary"),
-            ExporterConfig.ISSUE_FIELD_NAME__PARENT: IssueField(ExporterConfig.ISSUE_FIELD_NAME__PARENT, "parent"),
-            # User fields
-            ExporterConfig.ISSUE_FIELD_NAME__REPORTER: IssueField(ExporterConfig.ISSUE_FIELD_NAME__REPORTER, "reporter"),
-            ExporterConfig.ISSUE_FIELD_NAME__ASSIGNEE: IssueField(ExporterConfig.ISSUE_FIELD_NAME__ASSIGNEE, "assignee"),
-            # Status-related fields
-            ExporterConfig.ISSUE_FIELD_NAME__STATUS: IssueField(ExporterConfig.ISSUE_FIELD_NAME__STATUS, "status"),
-            ExporterConfig.ISSUE_FIELD_NAME__PRIORITY: IssueField(ExporterConfig.ISSUE_FIELD_NAME__PRIORITY, "priority"),
-            ExporterConfig.ISSUE_FIELD_NAME__FLAGGED: IssueField(ExporterConfig.ISSUE_FIELD_NAME__FLAGGED, "", True), # It's a locked custom field that must be defined inside the YAML config file
-            ExporterConfig.ISSUE_FIELD_NAME__RESOLUTION: IssueField(ExporterConfig.ISSUE_FIELD_NAME__RESOLUTION, "resolution"),
-            # Date/time-related fields
-            ExporterConfig.ISSUE_FIELD_NAME__CREATED: IssueField(ExporterConfig.ISSUE_FIELD_NAME__CREATED, "created"),
-            ExporterConfig.ISSUE_FIELD_NAME__DUE_DATE: IssueField(ExporterConfig.ISSUE_FIELD_NAME__DUE_DATE, "duedate"),
-            ExporterConfig.ISSUE_FIELD_NAME__UPDATED: IssueField(ExporterConfig.ISSUE_FIELD_NAME__UPDATED, "updated"),
-            ExporterConfig.ISSUE_FIELD_NAME__RESOLVED: IssueField(ExporterConfig.ISSUE_FIELD_NAME__RESOLVED, "resolutiondate"),
-            # Label-like fields
-            ExporterConfig.ISSUE_FIELD_NAME__LABELS: IssueField(ExporterConfig.ISSUE_FIELD_NAME__LABELS, "labels"),            
-            ExporterConfig.ISSUE_FIELD_NAME__COMPONENTS: IssueField(ExporterConfig.ISSUE_FIELD_NAME__COMPONENTS, "components"),
-            ExporterConfig.ISSUE_FIELD_NAME__AFFECTED_VERSIONS: IssueField(ExporterConfig.ISSUE_FIELD_NAME__AFFECTED_VERSIONS, "versions"),
-            ExporterConfig.ISSUE_FIELD_NAME__FIXED_VERSIONS: IssueField(ExporterConfig.ISSUE_FIELD_NAME__FIXED_VERSIONS, "fixVersions")
-        }
+        self.__standard_issue_fields: dict = {}
+        self.__standard_issue_field_id_flagged: str = ""
+        self.__custom_issue_fields: dict = {}
+
         self.__standard_field_prefix: str = ""
         self.__custom_field_prefix: str = ""
+        self.__issue_field_id_postfix: str = ""
 
         # Workflow timestamp export
         self.__workflow: Workflow = None
@@ -143,6 +144,7 @@ class ExporterConfig:
     ) -> object:
         return self.__logger
 
+
     # Porperties for Jira connection
 
     @property
@@ -162,6 +164,7 @@ class ExporterConfig:
             raise ValueError(f"The given domain '{value}' does not fit the pattern 'https://[YOUR-NAME].atlassian.net'. Please check the YAML configuration file.")
         self.__log_attribute(ExporterConfig.YAML__CONNECTION, ExporterConfig.YAML__CONNECTION__DOMAIN, value)
 
+
     @property
     def username(
         self
@@ -176,6 +179,7 @@ class ExporterConfig:
         self.__username = value
         self.__log_attribute(ExporterConfig.YAML__CONNECTION, ExporterConfig.YAML__CONNECTION__USERNAME, value)
 
+
     @property
     def api_token(
         self
@@ -189,6 +193,7 @@ class ExporterConfig:
     ):
         self.__api_token = value
         self.__log_attribute(ExporterConfig.YAML__CONNECTION, ExporterConfig.YAML__CONNECTION__API_TOKEN, value)
+
 
     # Properties for JQL request
 
@@ -206,6 +211,7 @@ class ExporterConfig:
         self.__jql_query = value
         self.logger.debug(f"JQL query generated: {value}")
 
+
     @property
     def max_results(
         self
@@ -220,23 +226,29 @@ class ExporterConfig:
         self.__max_results = value
         self.__log_attribute(ExporterConfig.YAML__SEARCH_CRITERIA, ExporterConfig.YAML__SEARCH_CRITERIA__MAX_RESULTS, str(value))
 
+
     # Properties for issue field export
 
     @property
-    def issue_fields(
+    def standard_issue_fields(
         self
     ) -> dict:
-        return self.__issue_fields
+        return self.__standard_issue_fields
+
 
     @property
-    def fields_to_fetch(
+    def standard_issue_field_id_flagged(
         self
-    ) -> list:
-        return_fields: list = []
-        for field in self.issue_fields.values():
-            if field.shall_fetch:
-                return_fields.append(field.id)
-        return return_fields
+    ) -> str:
+        return self.__standard_issue_field_id_flagged
+
+
+    @property
+    def custom_issue_fields(
+        self
+    ) -> dict:
+        return self.__custom_issue_fields
+
 
     @property
     def standard_field_prefix(
@@ -252,6 +264,7 @@ class ExporterConfig:
         self.__standard_field_prefix = value
         self.__log_attribute(ExporterConfig.YAML__MISC, ExporterConfig.YAML__MISC__STANDARD_FIELD_PREFIX, str(value))
 
+
     @property
     def custom_field_prefix(
         self
@@ -266,6 +279,22 @@ class ExporterConfig:
         self.__custom_field_prefix = value
         self.__log_attribute(ExporterConfig.YAML__MISC, ExporterConfig.YAML__MISC__CUSTOM_FIELD_PREFIX, str(value))
 
+
+    @property
+    def issue_field_id_postfix(
+        self
+    ) -> str:
+        return self.__issue_field_id_postfix
+    
+    @issue_field_id_postfix.setter
+    def issue_field_id_postfix(
+        self,
+        value: str
+    ) -> None:
+        self.__issue_field_id_postfix = value
+        self.__log_attribute(ExporterConfig.YAML__MISC, ExporterConfig.YAML__MISC__ISSUE_FIELD_ID_POSTFIX, str(value))
+
+
     # Properties for workflow timestamp export
 
     @property
@@ -274,11 +303,13 @@ class ExporterConfig:
     ) -> Workflow:
         return self.__workflow
 
+
     @property
     def has_workflow(
         self
     ) -> bool:
         return self.workflow is not None and self.workflow.number_of_statuses > 0
+
 
     @property
     def status_category_prefix(
@@ -293,7 +324,8 @@ class ExporterConfig:
     ) -> None:
         self.__status_category_prefix = value
         self.__log_attribute(ExporterConfig.YAML__MISC, ExporterConfig.YAML__MISC__STATUS_CATEGORY_PREFIX, str(value))
-    
+
+
     # Other properties
 
     @property
@@ -309,6 +341,7 @@ class ExporterConfig:
     ) -> None:
         self.__decimal_separator = value
         self.__log_attribute(ExporterConfig.YAML__MANDATORY, ExporterConfig.YAML__MANDATORY__DECIMAL_SEPARATOR, str(value))
+
 
     @property
     def time_zone(
@@ -416,33 +449,28 @@ class ExporterConfig:
             case _:
                 raise ValueError(f"Please check the value for the attribute {ExporterConfig.YAML__MANDATORY} > {ExporterConfig.YAML__MANDATORY__DECIMAL_SEPARATOR}.")
 
-        self.issue_fields[ExporterConfig.ISSUE_FIELD_NAME__FLAGGED].id = self.__check_mandatory_attribute(data, ExporterConfig.YAML__MANDATORY__FLAGGED)
-        self.logger.debug(f"ID for issue field '{ExporterConfig.ISSUE_FIELD_NAME__FLAGGED}': {self.issue_fields[ExporterConfig.ISSUE_FIELD_NAME__FLAGGED].id}")
+        self.__standard_issue_field_id_flagged = self.__check_mandatory_attribute(data, ExporterConfig.YAML__MANDATORY__FLAGGED)
+        self.logger.debug(f"ID for issue field '{ExporterConfig.ISSUE_FIELD_NAME__FLAGGED}': {self.standard_issue_field_id_flagged}")
             
-        # Decide for all standard fields
+        # Set up all standard fields that should be exported        
         if ExporterConfig.YAML__STANDARD_FIELDS in data:
-            for name, export_to_csv in data[ExporterConfig.YAML__STANDARD_FIELDS].items():
-                if name in self.issue_fields.keys():
-                    match name:
-                        case ExporterConfig.ISSUE_FIELD_NAME__ISSUE_ID | ExporterConfig.ISSUE_FIELD_NAME__ISSUE_KEY:
-                            # Always export the issue key and ID to the CSV file
-                            self.issue_fields[name].shall_fetch = True
-                            self.issue_fields[name].shall_export_to_csv = True
-                        case ExporterConfig.ISSUE_FIELD_NAME__SUMMARY | ExporterConfig.ISSUE_FIELD_NAME__STATUS:
-                            # Always fetch but export to CSV file is optional
-                            self.issue_fields[name].shall_fetch = True
-                            self.issue_fields[name].shall_export_to_csv = bool(export_to_csv)
-                        case _:
-                            # Both, fetching and exporting to CSV file are optional
-                            self.issue_fields[name].shall_fetch = bool(export_to_csv) # Only fetch, if issue field should be shown in csv file
-                            self.issue_fields[name].shall_export_to_csv = bool(export_to_csv)
+            for standard_field_name, shall_export in data[ExporterConfig.YAML__STANDARD_FIELDS].items():
+                if standard_field_name in ExporterConfig.STANDARD_ISSUE_FIELDS.keys():
+                    if standard_field_name == ExporterConfig.ISSUE_FIELD_NAME__FLAGGED:
+                        standard_field_id = self.standard_issue_field_id_flagged
+                    else:
+                        standard_field_id = ExporterConfig.STANDARD_ISSUE_FIELDS[standard_field_name]
+                    self.__standard_issue_fields[standard_field_id] = standard_field_name
                 else:
-                    raise ValueError(f"Unknown standard issue field '{name}' defined in YAML configuration file.")
+                    self.logger.warning(f"Standard field '{standard_field_name}' with id '{standard_field_id}' is not recognized and will be ignored.")
 
-        # Set up all defined custom fields
+        # Set up all defined custom fields that should be exported
         if ExporterConfig.YAML__CUSTOM_FIELDS in data and isinstance(data[ExporterConfig.YAML__CUSTOM_FIELDS], dict):
             for custom_field_name, custom_field_id in data[ExporterConfig.YAML__CUSTOM_FIELDS].items():
-                self.__add_custom_field(custom_field_id, custom_field_name)
+                if IssueFieldType.check_custom_field_id(custom_field_id):
+                    self.__custom_issue_fields[custom_field_id] = custom_field_name
+                else:
+                    self.logger.warning(f"Custom field ID '{custom_field_id}' for field '{custom_field_name}' is not valid and will be ignored.")
 
         if ExporterConfig.YAML__MISC in data:
             if ExporterConfig.YAML__MISC__STANDARD_FIELD_PREFIX in data[ExporterConfig.YAML__MISC]:
@@ -451,9 +479,12 @@ class ExporterConfig:
             if ExporterConfig.YAML__MISC__CUSTOM_FIELD_PREFIX in data[ExporterConfig.YAML__MISC]:
                 self.custom_field_prefix = data[ExporterConfig.YAML__MISC][ExporterConfig.YAML__MISC__CUSTOM_FIELD_PREFIX]
             
+            if ExporterConfig.YAML__MISC__ISSUE_FIELD_ID_POSTFIX in data[ExporterConfig.YAML__MISC]:
+                self.issue_field_id_postfix = data[ExporterConfig.YAML__MISC][ExporterConfig.YAML__MISC__ISSUE_FIELD_ID_POSTFIX]
+
             if ExporterConfig.YAML__MISC__STATUS_CATEGORY_PREFIX in data[ExporterConfig.YAML__MISC]:
                 self.status_category_prefix = data[ExporterConfig.YAML__MISC][ExporterConfig.YAML__MISC__STATUS_CATEGORY_PREFIX]
-            
+
             if ExporterConfig.YAML__MISC__TIME_ZONE in data[ExporterConfig.YAML__MISC]:
                 self.time_zone = data[ExporterConfig.YAML__MISC][ExporterConfig.YAML__MISC__TIME_ZONE]
 
@@ -471,33 +502,6 @@ class ExporterConfig:
     #######################
     ### SUPPORT METHODS ###
     #######################
-
-
-    def __add_custom_field(
-        self,
-        id: str,
-        name: str
-    ) -> None:
-        """
-        Adds a custom field to the fields that should be fetched
-        and exported.
-
-        :param id: The custom field id like "customfield_10018"
-        :type id: str
-        :param name: The name of the custom field
-        :type name: str
-
-        :raise ValueError: If customfield ID does not conform the pattern "customfield_XXXXX"
-
-        :return: None
-        """
-        if name not in self.issue_fields.keys():
-            # create an IssueField marked as custom
-            self.issue_fields[name] = IssueField(name, "", True, True, True)
-            self.issue_fields[name].id = id
-            self.logger.debug(f"Added custom field '{name}' with id '{id}'.")
-        else:
-            raise ValueError(f"Custom field with redundant name '{name}'. Check your YAML configuration file.")
 
 
     def __jql_list_of_values(
