@@ -34,7 +34,7 @@ class IssueFieldType:
         self.__shall_fetch: bool = shall_fetch
         self.__shall_export_to_csv = shall_export_to_csv
         # The actual data storage attribute can be private to hide complexity
-        self._data: Any = None 
+        self._data: Any = None
         
 
     @property

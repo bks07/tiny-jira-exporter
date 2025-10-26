@@ -31,22 +31,25 @@ class IssueParser:
         self,
         config: ExporterConfig,
         logger: object,
-        pretty_print: bool = False
+        pretty_print: bool = False,
+        jira_instance = None # Mock class fot testing
     ):
+        # Read-only properties
         self.__logger: object = logger
         self.__config: ExporterConfig = config
-        self.__fields_to_fetch: list = []
-        self.__jira: Jira = Jira(
+        self.__jira: Jira = jira_instance or Jira(
             url = config.domain,
             username = config.username,
             password = config.api_token,
             cloud = True)
+        self.__shall_pretty_print: bool = pretty_print
+        # Alterable properties
+        self.__fields_to_fetch: list = []
         self.__issues: list = []
         self.__parsed_data: list = []
-        self.__shall_pretty_print: bool = pretty_print
 
         self.__schema_type_map = {}
-        all_fields = self.__jira.get_all_fields()
+        all_fields = self.jira.get_all_fields()
         for field in all_fields:
             field_id = field.get('id')
             schema_type = field.get('schema', {}).get('type')
@@ -55,9 +58,24 @@ class IssueParser:
             if field_id and schema_type:
                 self.__schema_type_map[field_id] = schema_type
 
-        print(self.__schema_type_map)  # Debug print to verify the mapping
-        sys.exit(1)
+    @property
+    def logger(self) -> object:
+        return self.__logger
 
+
+    @property
+    def config(self) -> ExporterConfig:
+        return self.__config
+    
+
+    @property
+    def jira(self) -> Jira:
+        return self.__jira
+
+
+    @property
+    def shall_pretty_print(self) -> bool:
+        return self.__shall_pretty_print
 
     ######################
     ### PUBLIC METHODS ###
@@ -85,7 +103,7 @@ class IssueParser:
                 shall_fetch = True
             elif standard_field_name == ExporterConfig.ISSUE_FIELD_NAME__FLAGGED:
                 # Always fetch flagged for having the info available for the workflow
-                standard_field_id = self.__config.standard_issue_field_id_flagged
+                standard_field_id = self.config.standard_issue_field_id_flagged
             
             self.__prepare_fields_to_fetch(
                 standard_field_name,
@@ -111,13 +129,17 @@ class IssueParser:
         shall_export_to_csv: bool
     ):
         schema_type = self.__schema_type_map.get(field_id)
-        self.__fields_to_fetch.append(IssueFieldTypeFactory.create_field_type(
+        self.logger.debug(f"Prepare field '{field_name}' (ID: {field_id}, Schema type: {schema_type}), Fetch: {shall_fetch}, Export to CSV: {shall_export_to_csv}")
+        issue_field_type:IssueFieldType = IssueFieldTypeFactory.create_field_type(
             schema_type,
             field_name,
             field_id,
             shall_fetch,
-            shall_export_to_csv
-        ))   
+            shall_export_to_csv,
+            self.logger
+        )
+        self.logger.debug(f"Done. Adding field to fetch list with field type class: {issue_field_type.__class__.__name__}.")
+        self.__fields_to_fetch.append(issue_field_type)
         
 
     def fetch_issues(
@@ -132,24 +154,26 @@ class IssueParser:
         :return: None
         """
         # Execute JQL query
-        self.__logger.debug("Starting to fetch issues from Jira.")
+        self.logger.debug("Starting to fetch issues from Jira.")
 
-        if self.__shall_pretty_print:
+        if self.shall_pretty_print:
             print("\nFetch issues from Jira...")
         
         try:
             # Call Jira to fetch issues
-            json_result_string = self.__jira.enhanced_jql(self.__config.jql_query, fields=self.__fields_to_fetch)
+            json_result_string = self.jira.enhanced_jql(self.config.jql_query, fields=self.__fields_to_fetch)
+            print(json_result_string)
+            sys.exit(1)
             self.__issues = json_result_string.get("issues")
 
         except Exception as e:
-            self.__logger.critical(f"Jira request failed with JQL: {self.__config.jql_query} (Original message: {e})")
-            raise ValueError(f"Jira request failed with JQL: {self.__config.jql_query}")
+            self.logger.critical(f"Jira request failed with JQL: {self.config.jql_query} (Original message: {e})")
+            raise ValueError(f"Jira request failed with JQL: {self.config.jql_query}")
         
-        if self.__shall_pretty_print:
+        if self.shall_pretty_print:
             print(" ... done.")
         
-        self.__logger.info(f"Issues successfully fetched: {len(self.__issues)}")
+        self.logger.info(f"Issues successfully fetched: {len(self.__issues)}")
 
 
     def parse_issues(self) -> None:
@@ -159,8 +183,8 @@ class IssueParser:
 
         :return: None
         """
-        self.__logger.debug("Starting to parse issues.")
-        if self.__shall_pretty_print:
+        self.logger.debug("Starting to parse issues.")
+        if self.shall_pretty_print:
             print("\nParse fetched Jira issues...")
 
         number_of_issues = len(self.__issues)
@@ -172,31 +196,31 @@ class IssueParser:
             issue_id = self.__parse_field_value(issue['id'])
             issue_fields = issue['fields']
 
-            self.__logger.debug(f"Start parsing issue {issue_key} ({issue_id}).")
+            self.logger.debug(f"Start parsing issue {issue_key} ({issue_id}).")
 
-            issue_summary = self.__config.issue_fields[ExporterConfig.ISSUE_FIELD_NAME__SUMMARY].get_csv_value(issue_fields['summary'])
+            issue_summary = self.config.issue_fields[ExporterConfig.ISSUE_FIELD_NAME__SUMMARY].get_csv_value(issue_fields['summary'])
 
             # Get the default values of an issue that are available for each export
             issue_creation_date = self.__parse_field_value(self.__timestamp_to_date(issue_fields['created'], IssueParser.DATE_PATTERN_FULL))
 
-            if self.__shall_pretty_print:
+            if self.shall_pretty_print:
                 self.__display_progress_bar(number_of_issues, i, issue_id, issue_key, issue_summary)
 
             issue_data = {}
             
-            for field in self.__config.issue_fields.values():
+            for field in self.config.issue_fields.values():
                 if not field.shall_export_to_csv:
                     continue
                 
-                custom_field_column_name = self.__config.custom_field_prefix + field.name
-                standard_field_column_name = self.__config.standard_field_prefix + field.name
+                custom_field_column_name = self.config.custom_field_prefix + field.name
+                standard_field_column_name = self.config.standard_field_prefix + field.name
 
                 if field.is_custom_field:
                     
                     match field.name:
                         case ExporterConfig.ISSUE_FIELD_NAME__FLAGGED:
                             # Considered being a standard field
-                            issue_data[standard_field_column_name] = self.__parse_field_flagged(issue_fields[self.__config.issue_fields[ExporterConfig.ISSUE_FIELD_NAME__FLAGGED].id])
+                            issue_data[standard_field_column_name] = self.__parse_field_flagged(issue_fields[self.config.issue_fields[ExporterConfig.ISSUE_FIELD_NAME__FLAGGED].id])
                         case _:
                             if isinstance(issue_fields[field.id], dict):
                                 custom_field_value = ""
@@ -272,7 +296,7 @@ class IssueParser:
                             issue_data[standard_field_column_name] = self.__parse_field_labels(issue_fields['labels'])
 
                         case ExporterConfig.ISSUE_FIELD_NAME__DUE_DATE:
-                            issue_data[standard_field_column_name] = self.__config.issue_fields[ExporterConfig.ISSUE_FIELD_NAME__DUE_DATE].get_csv_value(issue_fields['duedate'])
+                            issue_data[standard_field_column_name] = self.config.issue_fields[ExporterConfig.ISSUE_FIELD_NAME__DUE_DATE].get_csv_value(issue_fields['duedate'])
                             #self.__parse_field_value(self.__timestamp_to_date(issue_fields['duedate'], IssueParser.DATE_PATTERN_DATE_ONLY))
 
                         case ExporterConfig.ISSUE_FIELD_NAME__COMPONENTS:
@@ -284,15 +308,15 @@ class IssueParser:
                         case ExporterConfig.ISSUE_FIELD_NAME__AFFECTED_VERSIONS:
                             issue_data[standard_field_column_name] = self.__parse_versions(issue_fields['versions'])
                     
-            if self.__config.has_workflow:
+            if self.config.has_workflow:
                 issue_data.update(self.__parse_status_category_timestamps(issue_id, issue_creation_date))
             
             self.__parsed_data.append(issue_data)
         
-        if self.__shall_pretty_print:
+        if self.shall_pretty_print:
             print(" ... done.")
         
-        self.__logger.debug("All issues parsed.")
+        self.logger.debug("All issues parsed.")
 
 
     def export_to_csv(
@@ -307,21 +331,21 @@ class IssueParser:
 
         :return: None
         """
-        self.__logger.debug("Write CSV file.")
+        self.logger.debug("Write CSV file.")
 
-        if self.__shall_pretty_print:
+        if self.shall_pretty_print:
             print(f"\nWrite CSV output file to '{file_location}'.")
         
         try:
             df = pd.DataFrame.from_dict(self.__parsed_data)
             df.to_csv(file_location, index=False, sep=";", encoding="utf-8")
             
-            if self.__shall_pretty_print:
+            if self.shall_pretty_print:
                 print(" ... done.")
             
-            self.__logger.debug("CSV file successfully written.")
+            self.logger.debug("CSV file successfully written.")
         except Exception as error:
-            self.__logger.critical(error)
+            self.logger.critical(error)
 
 
     ############################
@@ -415,8 +439,8 @@ class IssueParser:
         transitions = []
         is_first_category = True
         # Initiate the status category timestamps by adding all of them with value None
-        for status_category in self.__config.workflow.categories:
-            column_name: str = self.__config.status_category_prefix + status_category
+        for status_category in self.config.workflow.categories:
+            column_name: str = self.config.status_category_prefix + status_category
             if is_first_category:
                 # Every issue gets created with the very first status of the workflow
                 # Therefore, set the creation date for the very first category
@@ -426,7 +450,7 @@ class IssueParser:
                 categories[column_name] = None
 
         # Crawl through all status changes of an issue
-        status_changelog = reversed(self.__jira.get_issue_status_changelog(issue_id))
+        status_changelog = reversed(self.jira.get_issue_status_changelog(issue_id))
         for transition in status_changelog:
             # Add the transition information to a list first
             # since it is returned in descending sort order
@@ -461,33 +485,33 @@ class IssueParser:
         :return: The updated transition categories
         :rtype: dict
         """
-        category_start_status = self.__config.workflow.category_of_status(start_status)
-        category_destination_status = self.__config.workflow.category_of_status(destination_status)
+        category_start_status = self.config.workflow.category_of_status(start_status)
+        category_destination_status = self.config.workflow.category_of_status(destination_status)
 
-        position_start_status = self.__config.workflow.index_of_status(start_status)
-        position_destination_status = self.__config.workflow.index_of_status(destination_status)
+        position_start_status = self.config.workflow.index_of_status(start_status)
+        position_destination_status = self.config.workflow.index_of_status(destination_status)
 
-        category_start_status_index = self.__config.workflow.index_of_category(category_start_status)
-        category_destination_status_index = self.__config.workflow.index_of_category(category_destination_status)
+        category_start_status_index = self.config.workflow.index_of_category(category_start_status)
+        category_destination_status_index = self.config.workflow.index_of_category(category_destination_status)
 
-        self.__logger.debug(f"Transition on {date}: {position_start_status}:{start_status}({category_start_status}) -> {position_destination_status}:{destination_status}({category_destination_status})")
+        self.logger.debug(f"Transition on {date}: {position_start_status}:{start_status}({category_start_status}) -> {position_destination_status}:{destination_status}({category_destination_status})")
         # Nothing to do here, this date had already been written
         # since there is no change to the category
         if category_start_status_index == category_destination_status_index:
-            self.__logger.debug(f"Same category, no dates to set.")
+            self.logger.debug(f"Same category, no dates to set.")
             return category_dates
         # The normal case, where the issue has been moved forward
         elif category_start_status_index < category_destination_status_index:
             for category_index in range(category_start_status_index, category_destination_status_index):
-                self.__logger.debug(f"Set date {date} for category: {category_index+1}")
-                column_name: str = self.__config.status_category_prefix + self.__config.workflow.categories[category_index+1]
+                self.logger.debug(f"Set date {date} for category: {category_index+1}")
+                column_name: str = self.config.status_category_prefix + self.config.workflow.categories[category_index+1]
                 # __timestamp_to_date returns a YYYY-MM-DD string now
                 category_dates[column_name] = self.__parse_field_value(self.__timestamp_to_date(date, IssueParser.DATE_PATTERN_FULL))
         # The case, when an issue has moved backward to a previous category
         else:
             for category_index in range(category_destination_status_index, category_start_status_index):
-                self.__logger.debug(f"Unset date for category: {category_index+1}")
-                column_name: str = self.__config.status_category_prefix + self.__config.workflow.categories[category_index+1]
+                self.logger.debug(f"Unset date for category: {category_index+1}")
+                column_name: str = self.config.status_category_prefix + self.config.workflow.categories[category_index+1]
                 category_dates[column_name] = None
 
         return category_dates
@@ -528,15 +552,15 @@ class IssueParser:
                 try:
                     encoded_string = value.encode(character_set["encoding"])
                     return_string = encoded_string.decode("utf-8", errors="replace")
-                    self.__logger.debug(f"Changed encoding from {character_set['encoding']} to utf-8 for string: {value}")
+                    self.logger.debug(f"Changed encoding from {character_set['encoding']} to utf-8 for string: {value}")
                 except Exception as e:
-                    self.__logger.warning(f"Encoding conversion failed for string: {value}. Error: {e}")
+                    self.logger.warning(f"Encoding conversion failed for string: {value}. Error: {e}")
                     return_string = value
             else:
                 return_string = value
 
         elif isinstance(value, float):
-            match self.__config.decimal_separator:
+            match self.config.decimal_separator:
                 case ExporterConfig.DECIMAL_SEPARATOR_COMMA:
                     return_string = str(value).replace(".", ",")
                 case _: # ExporterConfig.DECIMAL_SEPARATOR_POINT
@@ -575,15 +599,15 @@ class IssueParser:
             dt = datetime.strptime(str(timestamp), pattern)
         except Exception:
             # If parsing fails, return empty string to avoid crashing the whole run
-            self.__logger.debug(f"Failed to parse timestamp '{timestamp}' with pattern '{pattern}'")
+            self.logger.debug(f"Failed to parse timestamp '{timestamp}' with pattern '{pattern}'")
             return ""
 
         # Determine target timezone; fallback to UTC when no valid timezone is configured
-        tz_name = self.__config.time_zone if getattr(self.__config, 'time_zone', None) else 'UTC'
+        tz_name = self.config.time_zone if getattr(self.config, 'time_zone', None) else 'UTC'
         try:
             target_time_zone = pytz.timezone(tz_name)
         except Exception:
-            self.__logger.debug(f"Invalid timezone '{tz_name}', falling back to UTC")
+            self.logger.debug(f"Invalid timezone '{tz_name}', falling back to UTC")
             target_time_zone = pytz.timezone('UTC')
 
         # If parsed datetime is naive, assume UTC before converting

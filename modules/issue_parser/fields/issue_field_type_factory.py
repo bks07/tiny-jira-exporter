@@ -1,4 +1,6 @@
 from typing import Dict, Type, Any
+import logging
+
 # Assuming your base and derived classes are defined as in the previous answer
 from .issue_field_type import IssueFieldType
 from .issue_field_type_short_text import IssueFieldTypeShortText
@@ -61,7 +63,8 @@ class IssueFieldTypeFactory:
         name: str,
         id: str,
         shall_fetch: bool,
-        shall_export_to_csv: bool
+        shall_export_to_csv: bool,
+        logger: logging.Logger
     ) -> IssueFieldType:
         """
         Instantiates the appropriate IssueField subclass.
@@ -84,9 +87,9 @@ class IssueFieldTypeFactory:
             field_class = IssueFieldTypeFactory.FIELD_TYPE_MAPPING.get(schema_type)
         else:
             # Handle unknown or unmapped fields (e.g., an app field you don't care about)
-            print(f"Warning: Unknown scheme type '{schema_type}'. Falling back to generic field type.")
+            logger.warning(f"Unknown scheme type '{schema_type}'. Falling back to short text field type.")
             # You might define a generic IssueField subclass here for unhandled types
-            return IssueFieldType(name, id, shall_fetch, shall_export_to_csv) # Assuming IssueField is not abstract or has a concrete implementation
+            return IssueFieldTypeShortText(name, id, shall_fetch, shall_export_to_csv) # Assuming IssueField is not abstract or has a concrete implementation
 
         # 2. Instantiate the correct class and set its value
         # The specific constructor arguments will depend on your subclass design.
@@ -96,5 +99,5 @@ class IssueFieldTypeFactory:
             
         except Exception as e:
             # Handle instantiation or validation errors (e.g., wrong value type)
-            print(f"Error instantiating field {name} ({field_class.__name__}): {e}")
+            logger.error(f"Error instantiating field {name} ({field_class.__name__}): {e}")
             raise

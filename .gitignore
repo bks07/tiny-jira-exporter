@@ -6,3 +6,7 @@ venv/
 # Python cache
 __pycache__/
 *.pyc
+
+# Test data fetcher
+scripts/test_data_fetcher/.env
+tests/test_data/json/*.json

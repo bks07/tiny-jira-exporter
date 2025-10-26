@@ -1,0 +1,5 @@
+JIRA_DOMAIN=https://your-domain.atlassian.net
+JIRA_USERNAME=your-email@example.com
+JIRA_API_TOKEN=your-api-token
+JIRA_QUERY="project = TEST ORDER BY created ASC"
+JIRA_ISSUE_FIELDS=summary,description,assignee,created,updated,status,labels,customdield_10021
