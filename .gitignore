@@ -8,5 +8,6 @@ __pycache__/
 *.pyc
 
 # Test data fetcher
-scripts/test_data_fetcher/.env
+scripts/jira_test_data_fetcher/.env
+scripts/config_test_data_generator/.env
 tests/test_data/json/*.json

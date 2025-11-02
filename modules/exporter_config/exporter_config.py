@@ -9,16 +9,26 @@ from ..issue_parser.fields.issue_field_type import IssueFieldType
 
 class ExporterConfig:
     """
-    Reads out a YAML configuration file and provides all configuration data
-    to the IssueParser class (strong coupling).
+    Reads and parses a YAML configuration file and provides all configuration data
+    to the IssueParser class for Jira issue export.
+
+    This class handles:
+    - Jira connection details (domain, username, API token)
+    - Search criteria (projects, filters, issue types, date ranges)
+    - Issue field configuration (standard and custom fields)
+    - Workflow and status tracking
+    - Export formatting options (decimal separator, time zone, field prefixes)
 
     :param yaml_file_location: The file location of the YAML configuration file
     :type yaml_file_location: str
-    :param logger: The logger for debugging purposes
+    :param logger: The logger instance for debugging and informational messages
     :type logger: object
-    :param shall_pretty_print: If true, the configuration parser prints basic information to the console
+    :param shall_pretty_print: If True, configuration parser prints basic information to console
     :type shall_pretty_print: bool
+    :raises ValueError: If required configuration sections or attributes are missing
     """
+    
+    # YAML configuration section keys
     YAML__CONNECTION = "Connection"
     YAML__CONNECTION__DOMAIN = "Domain"
     YAML__CONNECTION__USERNAME = "Username"
@@ -43,7 +53,7 @@ class ExporterConfig:
     YAML__MISC__STATUS_CATEGORY_PREFIX = "Status Category Prefix"
     YAML__MISC__TIME_ZONE = "Time Zone"
 
-    # Always export
+    # Issue field display names - Always exported
     ISSUE_FIELD_NAME__ISSUE_KEY = "Key"
     ISSUE_FIELD_NAME__ISSUE_ID = "ID"
     # Descriptive fields
@@ -69,6 +79,7 @@ class ExporterConfig:
     ISSUE_FIELD_NAME__AFFECTED_VERSIONS = "Affected Versions"
     ISSUE_FIELD_NAME__FIXED_VERSIONS = "Fixed Versions"
 
+    # Mapping of issue field display names to Jira field IDs
     STANDARD_ISSUE_FIELDS = {
         ISSUE_FIELD_NAME__ISSUE_KEY: "key",
         ISSUE_FIELD_NAME__ISSUE_ID: "id",
@@ -91,6 +102,7 @@ class ExporterConfig:
         ISSUE_FIELD_NAME__FIXED_VERSIONS: "fixVersions"
     }
 
+    # Decimal separator constants
     DECIMAL_SEPARATOR_POINT = "Point"
     DECIMAL_SEPARATOR_COMMA = "Comma"
 
@@ -100,10 +112,21 @@ class ExporterConfig:
         logger: object,
         shall_pretty_print: bool = False
     ):
+        """
+        Initialize the ExporterConfig instance by loading and parsing the YAML configuration file.
+
+        :param yaml_file_location: Path to the YAML configuration file
+        :type yaml_file_location: str
+        :param logger: Logger instance for debug and info messages
+        :type logger: object
+        :param shall_pretty_print: Whether to print configuration info to console, defaults to False
+        :type shall_pretty_print: bool
+        :raises ValueError: If required configuration sections or attributes are missing or invalid
+        """
         self.__logger = logger
         self.__shall_pretty_print = shall_pretty_print
         
-        # Porperties for Jira connection
+        # Properties for Jira connection
         self.__domain: str = ""
         self.__username: str = ""
         self.__api_token: str = ""
@@ -126,7 +149,7 @@ class ExporterConfig:
         self.__status_category_prefix: str = ""
 
         # Other properties
-        self.__decimal_separator: str = ExporterConfig.DECIMAL_SEPARATOR_COMMA # cannot be empty
+        self.__decimal_separator: str = ExporterConfig.DECIMAL_SEPARATOR_COMMA
         self.__time_zone: str = ""
 
         # Parse YAML config file to populate all properties
@@ -137,27 +160,38 @@ class ExporterConfig:
     ### PROPERTIES ###
     ##################
 
+    @property
+    def logger(self) -> object:
+        """
+        Get the logger instance.
 
-    @property # Read only
-    def logger(
-        self
-    ) -> object:
+        :return: The logger object used for debug messages
+        :rtype: object
+        """
         return self.__logger
 
 
-    # Porperties for Jira connection
+    # Properties for Jira connection
 
     @property
-    def domain(
-        self
-    ) -> str:
+    def domain(self) -> str:
+        """
+        Get the Jira domain URL.
+
+        :return: The Jira domain URL in format https://[YOUR-NAME].atlassian.net
+        :rtype: str
+        """
         return self.__domain
 
     @domain.setter
-    def domain(
-        self,
-        value: str
-    ):
+    def domain(self, value: str):
+        """
+        Set the Jira domain URL with validation.
+
+        :param value: The Jira domain URL to set
+        :type value: str
+        :raises ValueError: If the domain does not match the expected pattern
+        """
         if re.match(r"^https://[^/]+\.atlassian\.net$", value):
             self.__domain = value
         else:
@@ -166,31 +200,45 @@ class ExporterConfig:
 
 
     @property
-    def username(
-        self
-    ) -> str:
+    def username(self) -> str:
+        """
+        Get the Jira username.
+
+        :return: The Jira username for authentication
+        :rtype: str
+        """
         return self.__username
 
     @username.setter
-    def username(
-        self,
-        value: str
-    ):
+    def username(self, value: str):
+        """
+        Set the Jira username.
+
+        :param value: The Jira username to set
+        :type value: str
+        """
         self.__username = value
         self.__log_attribute(ExporterConfig.YAML__CONNECTION, ExporterConfig.YAML__CONNECTION__USERNAME, value)
 
 
     @property
-    def api_token(
-        self
-    ) -> str:
+    def api_token(self) -> str:
+        """
+        Get the Jira API token.
+
+        :return: The Jira API token for authentication
+        :rtype: str
+        """
         return self.__api_token
 
     @api_token.setter
-    def api_token(
-        self,
-        value: str
-    ):
+    def api_token(self, value: str):
+        """
+        Set the Jira API token.
+
+        :param value: The Jira API token to set
+        :type value: str
+        """
         self.__api_token = value
         self.__log_attribute(ExporterConfig.YAML__CONNECTION, ExporterConfig.YAML__CONNECTION__API_TOKEN, value)
 
@@ -198,31 +246,45 @@ class ExporterConfig:
     # Properties for JQL request
 
     @property
-    def jql_query(
-        self
-    ) -> str:
+    def jql_query(self) -> str:
+        """
+        Get the JQL query used to fetch issues.
+
+        :return: The JQL (Jira Query Language) query string
+        :rtype: str
+        """
         return self.__jql_query
 
     @jql_query.setter
-    def jql_query(
-        self,
-        value: str
-    ):
+    def jql_query(self, value: str):
+        """
+        Set the JQL query.
+
+        :param value: The JQL query string to set
+        :type value: str
+        """
         self.__jql_query = value
         self.logger.debug(f"JQL query generated: {value}")
 
 
     @property
-    def max_results(
-        self
-    ) -> int:
+    def max_results(self) -> int:
+        """
+        Get the maximum number of results to fetch from Jira.
+
+        :return: The maximum number of issues to fetch
+        :rtype: int
+        """
         return self.__max_results
 
     @max_results.setter
-    def max_results(
-        self,
-        value: int
-    ):
+    def max_results(self, value: int):
+        """
+        Set the maximum number of results to fetch.
+
+        :param value: The maximum number of issues to fetch
+        :type value: int
+        """
         self.__max_results = value
         self.__log_attribute(ExporterConfig.YAML__SEARCH_CRITERIA, ExporterConfig.YAML__SEARCH_CRITERIA__MAX_RESULTS, str(value))
 
@@ -230,67 +292,100 @@ class ExporterConfig:
     # Properties for issue field export
 
     @property
-    def standard_issue_fields(
-        self
-    ) -> dict:
+    def standard_issue_fields(self) -> dict:
+        """
+        Get the standard issue fields to export.
+
+        :return: Dictionary mapping Jira field IDs to display names
+        :rtype: dict
+        """
         return self.__standard_issue_fields
 
 
     @property
-    def standard_issue_field_id_flagged(
-        self
-    ) -> str:
+    def standard_issue_field_id_flagged(self) -> str:
+        """
+        Get the custom field ID for the flagged field.
+
+        :return: The custom field ID for flagged issues
+        :rtype: str
+        """
         return self.__standard_issue_field_id_flagged
 
 
     @property
-    def custom_issue_fields(
-        self
-    ) -> dict:
+    def custom_issue_fields(self) -> dict:
+        """
+        Get the custom issue fields to export.
+
+        :return: Dictionary mapping custom field IDs to display names
+        :rtype: dict
+        """
         return self.__custom_issue_fields
 
 
     @property
-    def standard_field_prefix(
-        self
-    ) -> str:
+    def standard_field_prefix(self) -> str:
+        """
+        Get the prefix for standard field names in the export.
+
+        :return: The prefix string for standard fields
+        :rtype: str
+        """
         return self.__standard_field_prefix
 
     @standard_field_prefix.setter
-    def standard_field_prefix(
-        self,
-        value: str
-    ) -> None:
+    def standard_field_prefix(self, value: str) -> None:
+        """
+        Set the prefix for standard field names.
+
+        :param value: The prefix string to set
+        :type value: str
+        """
         self.__standard_field_prefix = value
         self.__log_attribute(ExporterConfig.YAML__MISC, ExporterConfig.YAML__MISC__STANDARD_FIELD_PREFIX, str(value))
 
 
     @property
-    def custom_field_prefix(
-        self
-    ) -> str:
+    def custom_field_prefix(self) -> str:
+        """
+        Get the prefix for custom field names in the export.
+
+        :return: The prefix string for custom fields
+        :rtype: str
+        """
         return self.__custom_field_prefix
 
     @custom_field_prefix.setter
-    def custom_field_prefix(
-        self,
-        value: str
-    ) -> None:
+    def custom_field_prefix(self, value: str) -> None:
+        """
+        Set the prefix for custom field names.
+
+        :param value: The prefix string to set
+        :type value: str
+        """
         self.__custom_field_prefix = value
         self.__log_attribute(ExporterConfig.YAML__MISC, ExporterConfig.YAML__MISC__CUSTOM_FIELD_PREFIX, str(value))
 
 
     @property
-    def issue_field_id_postfix(
-        self
-    ) -> str:
+    def issue_field_id_postfix(self) -> str:
+        """
+        Get the postfix appended to field IDs in the export.
+
+        :return: The postfix string for field IDs
+        :rtype: str
+        """
         return self.__issue_field_id_postfix
     
     @issue_field_id_postfix.setter
-    def issue_field_id_postfix(
-        self,
-        value: str
-    ) -> None:
+    def issue_field_id_postfix(self, value: str) -> None:
+        """
+        Set the postfix for field IDs.
+
+        :param value: The postfix string to set
+        :type value: str
+        """
         self.__issue_field_id_postfix = value
         self.__log_attribute(ExporterConfig.YAML__MISC, ExporterConfig.YAML__MISC__ISSUE_FIELD_ID_POSTFIX, str(value))
 
@@ -298,30 +393,45 @@ class ExporterConfig:
     # Properties for workflow timestamp export
 
     @property
-    def workflow(
-        self
-    ) -> Workflow:
+    def workflow(self) -> Workflow:
+        """
+        Get the workflow configuration.
+
+        :return: The Workflow object containing status information
+        :rtype: Workflow
+        """
         return self.__workflow
 
 
     @property
-    def has_workflow(
-        self
-    ) -> bool:
+    def has_workflow(self) -> bool:
+        """
+        Check if workflow configuration exists and contains statuses.
+
+        :return: True if workflow is configured with at least one status, False otherwise
+        :rtype: bool
+        """
         return self.workflow is not None and self.workflow.number_of_statuses > 0
 
 
     @property
-    def status_category_prefix(
-        self
-    ) -> str:
+    def status_category_prefix(self) -> str:
+        """
+        Get the prefix for status category field names.
+
+        :return: The prefix string for status categories
+        :rtype: str
+        """
         return self.__status_category_prefix
     
     @status_category_prefix.setter
-    def status_category_prefix(
-        self,
-        value: str
-    ) -> None:
+    def status_category_prefix(self, value: str) -> None:
+        """
+        Set the prefix for status category field names.
+
+        :param value: The prefix string to set
+        :type value: str
+        """
         self.__status_category_prefix = value
         self.__log_attribute(ExporterConfig.YAML__MISC, ExporterConfig.YAML__MISC__STATUS_CATEGORY_PREFIX, str(value))
 
@@ -329,31 +439,45 @@ class ExporterConfig:
     # Other properties
 
     @property
-    def decimal_separator(
-        self
-    ) -> str:
+    def decimal_separator(self) -> str:
+        """
+        Get the decimal separator to use in CSV export.
+
+        :return: Either DECIMAL_SEPARATOR_POINT or DECIMAL_SEPARATOR_COMMA
+        :rtype: str
+        """
         return self.__decimal_separator
     
     @decimal_separator.setter
-    def decimal_separator(
-        self,
-        value: str
-    ) -> None:
+    def decimal_separator(self, value: str) -> None:
+        """
+        Set the decimal separator for CSV export.
+
+        :param value: Either DECIMAL_SEPARATOR_POINT or DECIMAL_SEPARATOR_COMMA
+        :type value: str
+        """
         self.__decimal_separator = value
         self.__log_attribute(ExporterConfig.YAML__MANDATORY, ExporterConfig.YAML__MANDATORY__DECIMAL_SEPARATOR, str(value))
 
 
     @property
-    def time_zone(
-        self
-    ) -> str:
+    def time_zone(self) -> str:
+        """
+        Get the time zone for date/time field conversion.
+
+        :return: The time zone string (e.g., 'UTC', 'America/New_York')
+        :rtype: str
+        """
         return self.__time_zone
     
     @time_zone.setter
-    def time_zone(
-        self,
-        value: str
-    ) -> None:
+    def time_zone(self, value: str) -> None:
+        """
+        Set the time zone for date/time field conversion.
+
+        :param value: The time zone string
+        :type value: str
+        """
         self.__time_zone = value
         self.__log_attribute(ExporterConfig.YAML__MISC, ExporterConfig.YAML__MISC__TIME_ZONE, str(value))
 
@@ -363,24 +487,25 @@ class ExporterConfig:
     ######################
 
 
-    def __load_yaml_file(
-        self,
-        file_location: str
-    ) -> None:
+    #######################
+    ### SUPPORT METHODS ###
+    #######################
+
+    def __load_yaml_file(self, file_location: str) -> None:
         """
-        Loads the YAML config file from the given location.
+        Load and parse the YAML configuration file and populate all configuration properties.
 
-        :param file_location: The location of the YAML configuration file
+        Processes connection details, search criteria, field configurations, workflow settings,
+        and miscellaneous export options from the YAML file.
+
+        :param file_location: The path to the YAML configuration file
         :type file_location: str
-
-        :raise ValueError: Whenever something is missing or erroneous in the YAML file
-
+        :raises ValueError: If required configuration sections are missing or attributes are invalid
         :return: None
         """
-        self.logger.debug("Start loading YAML configurtation file.")
+        self.logger.debug("Start loading YAML configuration file.")
 
-        if self.__shall_pretty_print:
-            print("Process YAML config file...")
+        self.__pretty_print("Process YAML config file...")
 
         # Open the YAML file in read mode
         with open(file_location, "r") as file:
@@ -440,7 +565,7 @@ class ExporterConfig:
         if ExporterConfig.YAML__SEARCH_CRITERIA__MAX_RESULTS in data[ExporterConfig.YAML__SEARCH_CRITERIA]:
             self.max_results = data[ExporterConfig.YAML__SEARCH_CRITERIA][ExporterConfig.YAML__SEARCH_CRITERIA__MAX_RESULTS]
 
-        # Ceck all mandatory attributes    
+        # Check all mandatory attributes    
         match self.__check_mandatory_attribute(data, ExporterConfig.YAML__MANDATORY__DECIMAL_SEPARATOR):
             case ExporterConfig.DECIMAL_SEPARATOR_POINT:
                 self.decimal_separator = ExporterConfig.DECIMAL_SEPARATOR_POINT
@@ -492,32 +617,23 @@ class ExporterConfig:
         # Set up all workflow-related information.
         if ExporterConfig.YAML__WORKFLOW in data and data[ExporterConfig.YAML__WORKFLOW] is not None:
             self.__workflow = Workflow(data[ExporterConfig.YAML__WORKFLOW], self.logger)
-        
-        if self.__shall_pretty_print:
-            print(" ... done.")
-        
+
+        self.__pretty_print(" ... done.")
+
         self.logger.debug("YAML configuration file successfully loaded.")
 
 
-    #######################
-    ### SUPPORT METHODS ###
-    #######################
-
-
-    def __jql_list_of_values(
-        self,
-        issue_field: str,
-        values: list
-    ) -> str:
+    def __jql_list_of_values(self, issue_field: str, values: list) -> str:
         """
-        Builds the JQL string originating from a list list of values for a certain issue field.
+        Build a JQL query fragment from a list of values for a specific Jira issue field.
 
-        :param issue_field: The issue field like 'project' or 'issue_types'
+        Constructs a JQL IN clause like "project IN('KEY1', 'KEY2')" from the provided values.
+
+        :param issue_field: The Jira issue field name (e.g., 'project', 'issuetype')
         :type issue_field: str
-        :param values: The whole list of values like 'Story', 'Bug' for 'issue_types'
+        :param values: List of values to include in the IN clause
         :type values: list
-
-        :return: The JQL like "issuetype IN(TYPE1, TYPE2, ...)"
+        :return: The JQL query fragment, e.g., "issuetype IN('Bug', 'Story')"
         :rtype: str
         """
         jql_query = issue_field + " IN("
@@ -528,23 +644,19 @@ class ExporterConfig:
         return jql_query
 
 
-    def __check_mandatory_attribute(
-        self,
-        data: dict,
-        attribute: str
-    ) -> str:
+    def __check_mandatory_attribute(self, data: dict, attribute: str) -> str:
         """
-        Checks if a mandatory attribute inside the YAML configuration
-        file is properly set
+        Validate that a mandatory attribute exists in the YAML configuration.
 
-        :param data: The raw data from the YAML configuration file
+        Checks if the mandatory attribute is present in the Mandatory section
+        of the configuration data.
+
+        :param data: The parsed YAML configuration data
         :type data: dict
-        :param attribute: The name of the mandatory attribute
+        :param attribute: The name of the mandatory attribute to check
         :type attribute: str
-
-        :raise ValueError: If section "Mandatory" or the mandatory attribute is missing
-
-        :return: The value of the attribute
+        :raises ValueError: If the Mandatory section is missing or the attribute is not found
+        :return: The value of the mandatory attribute
         :rtype: str
         """
         if ExporterConfig.YAML__MANDATORY in data:
@@ -556,19 +668,16 @@ class ExporterConfig:
             raise ValueError(f"Section '{ExporterConfig.YAML__MANDATORY}' is missing in YAML config file.")
 
 
-    def __check_date(
-        self,
-        date_string: str
-    ) -> bool:
+    def __check_date(self, date_string: str) -> bool:
         """
-        Checks if the date format of a date attribute is correct.
-        That means it follows the format YYYY-MM-DD.
+        Validate that a date string follows the correct format (YYYY-MM-DD).
 
-        :param date_string: The date string from the YAML configuration file
+        Attempts to parse the date string according to the expected format
+        and returns True if successful, False otherwise.
+
+        :param date_string: The date string to validate
         :type date_string: str
-
-        :raise ValueError: If the date format is incorrect
-
+        :raises ValueError: If the date format cannot be parsed
         :return: True if the date format is correct, False otherwise
         :rtype: bool
         """
@@ -577,25 +686,32 @@ class ExporterConfig:
             return True
         except (ValueError, TypeError):
             return False
-    
 
-    def __log_attribute(
-        self,
-        section: str,
-        attribute_name: str,
-        value
-    ) -> None:
+
+    def __pretty_print(self, message: str) -> None:
         """
-        Logs a given attribute and its value.
-        Is used inside the setter methods.
+        Print a message to the console if pretty print is enabled.
 
-        :param section: The section of the attribute like "Workflow" or "Mandatory"
+        :param message: The message string to print
+        :type message: str
+        :return: None
+        """
+        if self.__shall_pretty_print:
+            print(message)
+
+
+    def __log_attribute(self, section: str, attribute_name: str, value) -> None:
+        """
+        Log a configuration attribute and its value for debugging purposes.
+
+        Used internally within setter methods to track configuration changes.
+
+        :param section: The YAML section name (e.g., 'Workflow', 'Mandatory')
         :type section: str
-        :param attribute_name: The name of the attribute
+        :param attribute_name: The name of the configuration attribute
         :type attribute_name: str
-        :param value: The value of the given attribute
+        :param value: The value of the attribute
         :type value: any
-
         :return: None
         """
         self.logger.debug(f"YAML attribute '{section} > {attribute_name}' has been set to '{str(value)}'.")

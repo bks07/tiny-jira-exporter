@@ -1,8 +1,20 @@
-import json
-import os
+#!/usr/bin/env python3
+# coding: utf8
+
 import sys
+import os
+# Add the project root directory to sys.path
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+sys.path.append(project_root)
+
+import json
+import logging
 from atlassian import Jira
 from argparse import ArgumentParser
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 class JiraTestDataFetcher:
     """Fetches test data from Jira and saves it as JSON files"""
@@ -14,12 +26,16 @@ class JiraTestDataFetcher:
             password=api_token,
             cloud=True
         )
+        # Set up logging
+        self.logger = logging.getLogger(__name__)
+        logging.basicConfig(level=logging.DEBUG)
+
+        # Define output directory for test data
         self.output_dir = os.path.join(
             os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
             'tests', 'test_data', 'json'
         )
-        print(f"Output directory: {self.output_dir}")
-        sys.exit(0)
+        self.logger.info(f"Output directory: {self.output_dir}")
         os.makedirs(self.output_dir, exist_ok=True)
 
     def fetch_and_save_all(self):

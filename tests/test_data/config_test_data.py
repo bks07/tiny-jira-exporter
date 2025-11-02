@@ -6,7 +6,6 @@ class JiraTestData:
     Test data class that mimics Jira API responses loaded from JSON files.
 
     This class provides methods to load test data from JSON files stored in the `json` directory.
-    It is used to simulate Jira API responses for testing purposes.
     """
 
     # Define the base path for test data
@@ -31,33 +30,13 @@ class JiraTestData:
             raise Exception(f"Failed to load test data from {file_path}: {str(e)}")
 
     @classmethod
-    def get_fields_response(cls, test_session: str = "") -> list:
+    def get_config(cls, test_session: str = "") -> list:
         """
-        Get the fields test data.
+        Get the configuration test data.
 
         :param test_session: An optional test session identifier to customize the data loading (default is an empty string).
         :type test_session: str
-        :return: The fields test data as a list.
+        :return: The configuration test data as a list.
         :rtype: list
         """
-        return cls.load_json_file('fields_response.json')
-
-    @classmethod
-    def get_issues_response(cls) -> dict:
-        """
-        Get the issues test data.
-
-        :return: The issues test data as a dictionary.
-        :rtype: dict
-        """
-        return cls.load_json_file('issues_response.json')
-
-    @classmethod
-    def get_status_changelog(cls) -> list:
-        """
-        Get the changelog test data.
-
-        :return: The changelog test data as a list.
-        :rtype: list
-        """
-        return cls.load_json_file('status_changelog.json')
+        return cls.load_json_file('config.json')

@@ -1,6 +1,0 @@
-chardet
-atlassian-python-api
-pandas
-PyYAML
-datetime
-pytz
