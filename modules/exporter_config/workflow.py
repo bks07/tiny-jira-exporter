@@ -2,13 +2,29 @@
 
 class Workflow:
     """
-    Stors all information of the workflow as defined
-    inside the YAML configuration file.
+    Represents a Jira workflow configuration with status categories and transitions.
 
-    :param workflow: All fields and categories of the workflow following "category: status".
-    :type workflow: dict
-    :param logger: The logger object
-    :type logger: object
+    This class manages the relationship between Jira statuses and their categories
+    as defined in the YAML configuration. It provides methods to query status
+    information, category mappings, and positional data for workflow analysis.
+
+    The workflow structure follows a "category: [status1, status2, ...]" format
+    where each category contains multiple statuses, and each status belongs to
+    exactly one category.
+
+    Args:
+        workflow: Dictionary mapping category names to lists of status names.
+        logger: Logger instance for debug and informational messages.
+
+    Example:
+        >>> workflow_config = {
+        ...     "To Do": ["Open", "Reopened"],
+        ...     "In Progress": ["In Development", "In Review"],
+        ...     "Done": ["Resolved", "Closed"]
+        ... }
+        >>> workflow = Workflow(workflow_config, logger)
+        >>> workflow.category_of_status("Open")
+        'To Do'
     """
     def __init__(
         self,
@@ -35,27 +51,45 @@ class Workflow:
 
 
     @property
-    def statuses(
-        self
-    ) -> list:
+    def statuses(self) -> list:
+        """
+        All status names defined in the workflow.
+
+        Returns:
+            List of all status names across all categories, in the order
+            they were processed during initialization.
+        """
         return list(self.__status_category_mapping.keys())
 
     @property
-    def categories(
-        self
-    ) -> list:
+    def categories(self) -> list:
+        """
+        All category names defined in the workflow.
+
+        Returns:
+            List of category names in the order they appear in the
+            configuration file.
+        """
         return self.__categories
 
     @property
-    def number_of_statuses(
-        self
-    ) -> int:
+    def number_of_statuses(self) -> int:
+        """
+        Total count of statuses across all categories.
+
+        Returns:
+            The number of individual statuses defined in the workflow.
+        """
         return len(self.statuses)
     
     @property
-    def number_of_categories(
-        self
-    ) -> int:
+    def number_of_categories(self) -> int:
+        """
+        Total count of status categories in the workflow.
+
+        Returns:
+            The number of categories defined in the workflow.
+        """
         return len(self.categories)
 
 
@@ -64,60 +98,69 @@ class Workflow:
     ######################
 
 
-    def category_of_status(
-        self,
-        status: str
-    ) -> str:
+    def category_of_status(self, status: str) -> str:
         """
-        Returns the category of a given status.
+        Find the category that contains the specified status.
 
-        :param status: The name of the status.
-        :type status: str
+        Args:
+            status: The name of the status to look up.
 
-        :raise ValueError: If the status category cannot be found since the status is not defined inside the YAML configuration file.
+        Returns:
+            The name of the category containing the status.
 
-        :return: The name of the category
-        :rtype: str
+        Raises:
+            ValueError: If the status is not defined in the workflow configuration.
+
+        Example:
+            >>> workflow.category_of_status("In Development")
+            'In Progress'
         """
         if status not in self.statuses:
             raise ValueError(f"Unable to get status category. Status '{status}' not defined inside YAML configuration file.")
         return self.__status_category_mapping[status]
 
 
-    def index_of_category(
-        self,
-        category: str
-    ) -> int:
+    def index_of_category(self, category: str) -> int:
         """
-        Returns the index number of the category.
+        Get the positional index of a category in the workflow.
 
-        :param category: The category to look for
-        :type category: int
+        The index represents the order in which categories were defined
+        in the configuration file, starting from 0.
 
-        :raise ValueError: If category is not defined in YAML configuration file.
+        Args:
+            category: The name of the category to find.
 
-        :return: The index of the category
-        :rtype: int
+        Returns:
+            The zero-based index position of the category.
+
+        Raises:
+            ValueError: If the category is not defined in the workflow configuration.
+
+        Example:
+            >>> workflow.index_of_category("In Progress")
+            1
         """
         if category not in self.categories:
             raise ValueError(f"Unable to get status category. Category '{category}' not defined inside YAML configuration file.")
         return int(self.categories.index(category))
 
 
-    def get_status_by_index(
-        self,
-        index: int
-    ) -> str:
+    def get_status_by_index(self, index: int) -> str:
         """
-        Retuns a given status based on it's index
+        Retrieve a status name by its positional index.
 
-        :param index: The position inside the list of statuses
-        :type index: int
+        Args:
+            index: The zero-based position in the statuses list.
 
-        :raise ValueError: If the index is out of bounds
+        Returns:
+            The name of the status at the specified index.
 
-        :return: The status name
-        :rtype: str
+        Raises:
+            ValueError: If the index is out of bounds or no statuses are defined.
+
+        Example:
+            >>> workflow.get_status_by_index(0)
+            'Open'
         """
         max_index: int = self.number_of_statuses - 1
         if max_index < 0:
@@ -128,20 +171,22 @@ class Workflow:
             return self.statuses[index]
 
 
-    def index_of_status(
-        self,
-        status: str
-    ) -> int:
+    def index_of_status(self, status: str) -> int:
         """
-        Returns the index of a given status
+        Find the positional index of a status in the workflow.
 
-        :param status: The name of the status
-        :type status: str
+        Args:
+            status: The name of the status to locate.
 
-        :raise ValueError: If the status is not defined inside the YAML configuration file.
+        Returns:
+            The zero-based index position of the status in the statuses list.
 
-        :return: The index of the status
-        :rtype: int
+        Raises:
+            ValueError: If the status is not defined in the workflow configuration.
+
+        Example:
+            >>> workflow.index_of_status("In Development")
+            2
         """
         if (status not in self.statuses):
             raise ValueError(f"Position of status '{status}' could not be determined. Statues does not exist.")

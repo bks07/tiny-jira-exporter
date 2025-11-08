@@ -1,7 +1,7 @@
 import json
 import os
 
-class JiraTestData:
+class ConfigTestData:
     """
     Test data class that mimics Jira API responses loaded from JSON files.
 

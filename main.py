@@ -109,8 +109,9 @@ def main():
             logger.setLevel(log_level)
             logger.debug("Logging to file enabled")
 
-        config = ExporterConfig(yaml_config_file_location, logger, shall_pretty_print)
-        
+        config = ExporterConfig(logger, shall_pretty_print)
+        config.load_yaml_file(yaml_config_file_location)
+        #sys.exit(0)  # --- IGNORE ---
         if config.domain == "" or \
             config.username == "" or \
             config.api_token == "":
@@ -125,12 +126,8 @@ def main():
                 config.api_token = str(input("Enter your Jira API token: "))
         
         # Parse all received issues
-        parser = IssueParser(config, logger, shall_pretty_print)
-        parser.prepare_standard_fields_to_fetch()
-        parser.prepare_custom_fields_to_fetch()
-        #sys.exit(0)  # --- IGNORE ---
-        parser.fetch_issues()
-        parser.parse_issues()
+        parser = IssueParser(logger, config, shall_pretty_print)
+        parser.fetch_and_parse_issues()
         parser.export_to_csv(csv_output_file_location)
 
     except Exception as error:

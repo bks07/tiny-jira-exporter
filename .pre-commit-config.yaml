@@ -1,0 +1,32 @@
+# .pre-commit-config.yaml
+repos:
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v4.5.0
+  hooks:
+    - id: trailing-whitespace   # Removes unnecessary whitespace at line endings
+    - id: end-of-file-fixer     # Ensures every file ends with an empty line
+    - id: check-yaml            # Checks YAML files for syntax errors
+    - id: check-added-large-files # Prevents adding very large files
+- repo: https://github.com/psf/black
+  rev: 24.4.2
+  hooks:
+    - id: black                # Code formatter for Python
+      language_version: python3.8 # Sets the Python version for Black
+- repo: https://github.com/pre-commit/mirrors-autopep8
+  rev: v1.6.0
+  hooks:
+    - id: autopep8             # Automatic code formatter for Python
+      args: [--max-line-length=88] # Sets the maximum line length to 88 characters
+      language_version: python3.8 # Sets the Python version for autopep8
+- repo: https://github.com/pre-commit/mirrors-isort
+  rev: v5.12.0
+  hooks:
+    - id: isort                # Sorts Python imports
+      args: [--profile=black]  # Compatible with Black formatting
+      language_version: python3.8 # Sets the Python version for isort
+- repo: https://github.com/pre-commit/mirrors-flake8
+  rev: 6.1.0
+  hooks:
+    - id: flake8               # Linter for Python code
+      args: [--max-line-length=88] # Sets the maximum line length to 88 characters
+      language_version: python3.8 # Sets the Python version for flake8

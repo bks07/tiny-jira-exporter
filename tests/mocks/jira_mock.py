@@ -22,6 +22,7 @@ class JiraMock:
         :type cloud: bool, optional
         """
         self.__test_session: str = ""
+        self.__status_changelogs: dict = None
 
     @property
     def test_session(self) -> str:
@@ -74,4 +75,6 @@ class JiraMock:
         :return: The status changelog test data for the current test session.
         :rtype: list
         """
-        return JiraTestData.get_status_changelog(self.test_session)
+        if self.__status_changelogs is None:
+            self.__status_changelogs = JiraTestData.get_issue_status_changelogs()
+        return self.__status_changelogs.get(issue_id, [])

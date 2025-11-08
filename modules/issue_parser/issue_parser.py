@@ -29,59 +29,112 @@ class IssueParser:
 
     def __init__(
         self,
-        config: ExporterConfig,
         logger: object,
-        pretty_print: bool = False,
-        jira_instance = None # Mock class fot testing
+        config: ExporterConfig,
+        pretty_print: bool = False
     ):
         # Read-only properties
         self.__logger: object = logger
         self.__config: ExporterConfig = config
-        self.__jira: Jira = jira_instance or Jira(
-            url = config.domain,
-            username = config.username,
-            password = config.api_token,
-            cloud = True)
         self.__shall_pretty_print: bool = pretty_print
         # Alterable properties
-        self.__fields_to_fetch: list = []
-        self.__issues: list = []
+        self.__fields_to_fetch: dict = {}
         self.__parsed_data: list = []
-
-        self.__schema_type_map = {}
-        all_fields = self.jira.get_all_fields()
-        for field in all_fields:
-            field_id = field.get('id')
-            schema_type = field.get('schema', {}).get('type')
-            
-            # Only store valid fields that have an ID and a schema type
-            if field_id and schema_type:
-                self.__schema_type_map[field_id] = schema_type
 
     @property
     def logger(self) -> object:
         return self.__logger
+
+    @property
+    def shall_pretty_print(self) -> bool:
+        return self.__shall_pretty_print
 
 
     @property
     def config(self) -> ExporterConfig:
         return self.__config
     
+    @config.setter
+    def config(self, value: ExporterConfig) -> None:
+        self.__config = value
+    
 
     @property
-    def jira(self) -> Jira:
-        return self.__jira
-
-
-    @property
-    def shall_pretty_print(self) -> bool:
-        return self.__shall_pretty_print
+    def fields_to_fetch(self) -> dict:
+        return self.__fields_to_fetch
+    
 
     ######################
     ### PUBLIC METHODS ###
     ######################
 
-    def prepare_standard_fields_to_fetch(self) -> None:
+    def fetch_and_parse_issues(
+        self
+    ) -> list:
+        """
+        Connects to Jira, fetches the issues, and prepares them for parsing.
+
+        :return: None
+        """
+        self.__pretty_print("Connect to Jira instance...")
+        self.logger.info(f"Connect to Jira instance '{self.config.domain}' with user '{self.config.username}'.")
+        jira = self.__connect_to_jira()
+        self.__pretty_print("... done.")
+        self.logger.info("Jira connection successful.")
+
+        self.__pretty_print("Prepare fields to fetch from Jira...")
+        self.logger.info("Prepare fields to fetch from Jira.")
+        schema_type_map = self.__fetch_field_types(jira)
+        self.__prepare_standard_fields_to_fetch(schema_type_map)
+        self.__prepare_custom_fields_to_fetch(schema_type_map)
+        self.__pretty_print("... done.")
+        self.logger.info("All fields are prepared to fetch.")
+
+        self.__pretty_print("Fetch issues from Jira...")
+        self.logger.info("Starting to fetch issues from Jira.")
+        issues = self.__fetch_issues(jira)
+        self.__pretty_print("... done.")
+        self.logger.info(f"Issues successfully fetched: {len(issues)}")
+
+        self.__pretty_print("Parse fetched Jira issues...")
+        self.logger.info("Starting to parse issues.")
+        parsed_issues =self.__parse_issues(issues)
+        self.__pretty_print("... done.")
+        self.logger.info("All fetched issues parsed successfully.")
+
+        return parsed_issues
+
+
+    def __connect_to_jira(
+        self,
+        jira_instance = None # Class for mock testing
+    ) -> Jira:
+        return jira_instance or Jira(
+            url = self.config.domain,
+            username = self.config.username,
+            password = self.config.api_token,
+            cloud = True
+        )
+    
+    
+    def __fetch_field_types(
+        self,
+        jira: Jira
+    ) -> dict:
+        # Build schema type map for all fields
+        schema_type_map: dict = {}
+        all_fields = jira.get_all_fields()
+        for field in all_fields:
+            field_id = field.get('id')
+            schema_type = field.get('schema', {}).get('type')
+            
+            # Only store valid fields that have an ID and a schema type
+            if field_id and schema_type:
+                schema_type_map[field_id] = schema_type
+        return schema_type_map
+
+
+    def __prepare_standard_fields_to_fetch(self, schema_type_map: dict) -> None:
         """
         Prepare the list of standard Jira issue fields to fetch and export based on configuration.
 
@@ -106,29 +159,34 @@ class IssueParser:
                 standard_field_id = self.config.standard_issue_field_id_flagged
             
             self.__prepare_fields_to_fetch(
+                schema_type_map,
                 standard_field_name,
                 standard_field_id,
                 shall_fetch,
-                shall_export_to_csv)
+                shall_export_to_csv
+            )
 
 
-    def prepare_custom_fields_to_fetch(self) -> None:
+    def __prepare_custom_fields_to_fetch(self, schema_type_map: dict) -> None:
         for custom_field_name, custom_field_id in ExporterConfig.STANDARD_ISSUE_FIELDS.items():
             self.__prepare_fields_to_fetch(
+                schema_type_map,
                 custom_field_name,
                 custom_field_id,
-                True,
-                True)
+                shall_fetch=True,
+                shall_export_to_csv=True
+            )
 
 
     def __prepare_fields_to_fetch(
         self,
+        schema_type_map: dict,
         field_name: str,
         field_id: str,
         shall_fetch: bool,
         shall_export_to_csv: bool
     ):
-        schema_type = self.__schema_type_map.get(field_id)
+        schema_type = schema_type_map.get(field_id)
         self.logger.debug(f"Prepare field '{field_name}' (ID: {field_id}, Schema type: {schema_type}), Fetch: {shall_fetch}, Export to CSV: {shall_export_to_csv}")
         issue_field_type:IssueFieldType = IssueFieldTypeFactory.create_field_type(
             schema_type,
@@ -139,12 +197,10 @@ class IssueParser:
             self.logger
         )
         self.logger.debug(f"Done. Adding field to fetch list with field type class: {issue_field_type.__class__.__name__}.")
-        self.__fields_to_fetch.append(issue_field_type)
+        self.__fields_to_fetch[field_id] = issue_field_type
         
 
-    def fetch_issues(
-        self
-    ) -> None:
+    def __fetch_issues(self, jira) -> list:
         """
         Connects to Jira and fetches the issues directly from Jira using a JQL query.
         Uses the configuration to access all required login credentials.
@@ -152,171 +208,75 @@ class IssueParser:
         :raise ValueError: On Jira error when JQL failed.
 
         :return: None
-        """
-        # Execute JQL query
-        self.logger.debug("Starting to fetch issues from Jira.")
-
-        if self.shall_pretty_print:
-            print("\nFetch issues from Jira...")
-        
+        """        
         try:
             # Call Jira to fetch issues
-            json_result_string = self.jira.enhanced_jql(self.config.jql_query, fields=self.__fields_to_fetch)
-            print(json_result_string)
-            sys.exit(1)
-            self.__issues = json_result_string.get("issues")
+            json_result_string = jira.enhanced_jql(self.config.jql_query, fields=self.__fields_to_fetch.keys())
+            return json_result_string.get("issues", [])
 
         except Exception as e:
             self.logger.critical(f"Jira request failed with JQL: {self.config.jql_query} (Original message: {e})")
             raise ValueError(f"Jira request failed with JQL: {self.config.jql_query}")
-        
-        if self.shall_pretty_print:
-            print(" ... done.")
-        
-        self.logger.info(f"Issues successfully fetched: {len(self.__issues)}")
 
 
-    def parse_issues(self) -> None:
+    def __parse_issues(self, issues_response: list) -> list:
         """
         Parses all issues that have been fetched previously to extract all information
         that will be written to the CSV output file.
 
         :return: None
         """
-        self.logger.debug("Starting to parse issues.")
-        if self.shall_pretty_print:
-            print("\nParse fetched Jira issues...")
-
-        number_of_issues = len(self.__issues)
+        parsed_issues = []
+        number_of_issues = len(issues_response)
         # Crawl all fetches issues
         for i in range(number_of_issues):
-            issue = self.__issues[i]
+            issue_raw = issues_response[i]
             # Save some variables for later use
-            issue_key = self.__parse_field_value(issue['key'])
-            issue_id = self.__parse_field_value(issue['id'])
-            issue_fields = issue['fields']
+            issue_key = IssueFieldTypeShortText("Issue Key", ExporterConfig.ISSUE_FIELD_ID__ISSUE_KEY)
+            issue_key.data = issue_raw['key']
 
-            self.logger.debug(f"Start parsing issue {issue_key} ({issue_id}).")
+            issue_id = IssueFieldTypeShortText("Issue ID", ExporterConfig.ISSUE_FIELD_ID__ISSUE_ID)
+            issue_id.data = issue_raw['id']
 
-            issue_summary = self.config.issue_fields[ExporterConfig.ISSUE_FIELD_NAME__SUMMARY].get_csv_value(issue_fields['summary'])
+            issue_fields_raw = issue_raw['fields']
 
-            # Get the default values of an issue that are available for each export
+            issue_summary = self.fields_to_fetch(ExporterConfig.ISSUE_FIELD_ID__SUMMARY)
+            issue_summary.data = issue_fields_raw[ExporterConfig.ISSUE_FIELD_ID__SUMMARY]
+
+
+            self.logger.debug(f"Start parsing issue {issue_key.get_value_for_csv()} ({issue_id.get_value_for_csv()}).")
+
+
+            # Get the default values of an issue that are available for each exported issue
             issue_creation_date = self.__parse_field_value(self.__timestamp_to_date(issue_fields['created'], IssueParser.DATE_PATTERN_FULL))
 
-            if self.shall_pretty_print:
-                self.__display_progress_bar(number_of_issues, i, issue_id, issue_key, issue_summary)
+            # if self.shall_pretty_print:
+            #     self.__display_progress_bar(number_of_issues, i, issue_id, issue_key, issue_summary)
 
             issue_data = {}
-            
-            for field in self.config.issue_fields.values():
+
+            for id, field in self.fields_to_fetch.items():
                 if not field.shall_export_to_csv:
                     continue
                 
-                custom_field_column_name = self.config.custom_field_prefix + field.name
-                standard_field_column_name = self.config.standard_field_prefix + field.name
+                field.data = issue_fields_raw.get(id)
 
                 if field.is_custom_field:
-                    
-                    match field.name:
-                        case ExporterConfig.ISSUE_FIELD_NAME__FLAGGED:
-                            # Considered being a standard field
-                            issue_data[standard_field_column_name] = self.__parse_field_flagged(issue_fields[self.config.issue_fields[ExporterConfig.ISSUE_FIELD_NAME__FLAGGED].id])
-                        case _:
-                            if isinstance(issue_fields[field.id], dict):
-                                custom_field_value = ""
-                                custom_field_id = ""
-                                if issue_fields[field.id]['value'] is not None:
-                                    custom_field_value = issue_fields[field.id]['value']
-                                    custom_field_id = issue_fields[field.id]['id']
-                                issue_data[custom_field_column_name] = self.__parse_field_value(custom_field_value)
-                                issue_data[custom_field_column_name + "ID"] = self.__parse_field_value(custom_field_id)
-                            else:
-                                issue_data[custom_field_column_name] = self.__parse_field_value(issue_fields[field.id])
-
+                    issue_data[self.config.custom_field_prefix + field.name] = field.get_value_for_csv()
                 else:
-                    
-
-                    match field.name:
-                        case ExporterConfig.ISSUE_FIELD_NAME__ISSUE_KEY:
-                            # No prefix for this column
-                            issue_data[field.name] = issue_key
-
-                        case ExporterConfig.ISSUE_FIELD_NAME__ISSUE_ID:
-                            # No prefix for this column
-                            issue_data[field.name] = issue_id
-
-                        case ExporterConfig.ISSUE_FIELD_NAME__ISSUE_TYPE:
-                            issue_data[standard_field_column_name] = self.__parse_field_value(issue_fields['issuetype']['name'])
-                            issue_data[standard_field_column_name + "ID"] = self.__parse_field_value(issue_fields['issuetype']['id'])
-
-                        case ExporterConfig.ISSUE_FIELD_NAME__REPORTER | ExporterConfig.ISSUE_FIELD_NAME__ASSIGNEE:
-                            account_object_display_name = ""
-                            account_object_account_id = ""
-                            if issue_fields[field.name.lower()] is not None:
-                                account_object_display_name = issue_fields[field.name.lower()]['displayName']
-                                account_object_account_id = issue_fields[field.name.lower()]['accountId']
-                            issue_data[standard_field_column_name] = self.__parse_field_value(account_object_display_name)
-                            issue_data[standard_field_column_name + " ID"] = self.__parse_field_value(account_object_account_id)
-
-                        case ExporterConfig.ISSUE_FIELD_NAME__SUMMARY:
-                            issue_data[standard_field_column_name] = issue_summary
-
-                        case ExporterConfig.ISSUE_FIELD_NAME__STATUS:
-                            issue_data[standard_field_column_name] = self.__parse_field_value(issue_fields['status']['name'])
-                            issue_data[standard_field_column_name + "ID"] = self.__parse_field_value(issue_fields['status']['id'])
-
-                        case ExporterConfig.ISSUE_FIELD_NAME__RESOLUTION:
-                            resoltion_name = ""
-                            resolution_id = ""
-                            if issue_fields['resolution'] is not None:
-                                resoltion_name = self.__parse_field_value(issue_fields['resolution']['name'])
-                                resolution_id = self.__parse_field_value(issue_fields['resolution']['id'])
-                            issue_data[standard_field_column_name] = resoltion_name
-                            issue_data[standard_field_column_name + "ID"] = resolution_id
-
-                        case ExporterConfig.ISSUE_FIELD_NAME__PRIORITY:
-                            issue_data[standard_field_column_name] = self.__parse_field_value(issue_fields['priority']['name'])
-                            issue_data[standard_field_column_name + "ID"] = self.__parse_field_value(issue_fields['priority']['id'])
-
-                        case ExporterConfig.ISSUE_FIELD_NAME__CREATED:
-                            issue_data[standard_field_column_name] = issue_creation_date
-                        
-                        case ExporterConfig.ISSUE_FIELD_NAME__UPDATED:
-                            issue_data[standard_field_column_name] = self.__parse_field_value(self.__timestamp_to_date(issue_fields['updated'], IssueParser.DATE_PATTERN_FULL))
-
-                        case ExporterConfig.ISSUE_FIELD_NAME__RESOLVED:
-                            issue_data[standard_field_column_name] = self.__parse_field_value(self.__timestamp_to_date(issue_fields['resolutiondate'], IssueParser.DATE_PATTERN_FULL))
-
-                        case ExporterConfig.ISSUE_FIELD_NAME__PARENT:
-                            if hasattr(issue_fields, "parent") and issue_fields['parent'] is not None:
-                                issue_data[standard_field_column_name] = self.__parse_field_value(issue_fields['parent']['key'])
-                                issue_data[standard_field_column_name + "ID"] = self.__parse_field_value(issue_fields['parent']['id'])
-
-                        case ExporterConfig.ISSUE_FIELD_NAME__LABELS:
-                            issue_data[standard_field_column_name] = self.__parse_field_labels(issue_fields['labels'])
-
-                        case ExporterConfig.ISSUE_FIELD_NAME__DUE_DATE:
-                            issue_data[standard_field_column_name] = self.config.issue_fields[ExporterConfig.ISSUE_FIELD_NAME__DUE_DATE].get_csv_value(issue_fields['duedate'])
-                            #self.__parse_field_value(self.__timestamp_to_date(issue_fields['duedate'], IssueParser.DATE_PATTERN_DATE_ONLY))
-
-                        case ExporterConfig.ISSUE_FIELD_NAME__COMPONENTS:
-                            issue_data[standard_field_column_name] = self.__parse_versions(issue_fields['components']) # The component field is similar to a version field 
-                        
-                        case ExporterConfig.ISSUE_FIELD_NAME__FIXED_VERSIONS:
-                            issue_data[standard_field_column_name] = self.__parse_versions(issue_fields['fixVersions'])
-
-                        case ExporterConfig.ISSUE_FIELD_NAME__AFFECTED_VERSIONS:
-                            issue_data[standard_field_column_name] = self.__parse_versions(issue_fields['versions'])
-                    
+                    issue_data[self.config.standard_field_prefix + field.name] = field.get_value_for_csv()
+            
+            # If workflow analysis is enabled, parse the status category timestamps
             if self.config.has_workflow:
                 issue_data.update(self.__parse_status_category_timestamps(issue_id, issue_creation_date))
             
-            self.__parsed_data.append(issue_data)
+            parsed_issues.append(issue_data)
         
         if self.shall_pretty_print:
             print(" ... done.")
         
         self.logger.debug("All issues parsed.")
+        return parsed_issues
 
 
     def export_to_csv(
@@ -346,71 +306,6 @@ class IssueParser:
             self.logger.debug("CSV file successfully written.")
         except Exception as error:
             self.logger.critical(error)
-
-
-    ############################
-    ### PARSE SPECIAL FIELDS ###
-    ############################
-
-
-    def __parse_field_labels(
-        self,
-        labels: list
-    ):
-        """
-        Parses the list of labels and returns it as a string that
-        can be used inside the CSV output file.
-
-        :param labels: The list of labels
-        :type labels: list
-
-        :return: All labels in a string, separated by a tube | and enclosed in single quotation makrs '.
-        :rtype: str
-        """
-        return_string = ""
-        if len(labels) > 0:
-           return_string = "'" + "'|'".join([x for x in labels]) + "'"
-        return self.__parse_field_value(return_string)
-        
-
-    def __parse_versions(
-        self,
-        versions: list
-    ):
-        """
-        Parses the list of labels and returns it as a string that
-        can be used inside the CSV output file.
-
-        :param versions: The list of versions
-        :type labels: list[Version]
-
-        :return: All labels in a string, separated by a tube | and enclosed in single quotation makrs '.
-        :rtype: str
-        """
-        return_string = ""
-
-        if len(versions) > 0:
-            return_string = "'"
-            for version in versions:
-                return_string +=  version['name'] + "'|'"
-            return_string = return_string[:-2]
-        return self.__parse_field_value(return_string)
-
-        
-    def __parse_field_flagged(
-        self,
-        value
-    ) -> str:
-        """
-        Checks if the resolution date is set.
-
-        :param value: Either an object (if flag is set) or None (if unflagged).
-        :type value: Any
-
-        :return: 'False' or 'True' as string
-        :rtype: str
-        """
-        return str(value is not None)
 
 
     ######################
@@ -522,148 +417,9 @@ class IssueParser:
     #######################
 
 
-    def __parse_field_value(
+    def __pretty_print(
         self,
-        value
-    ) -> str:
-        """...
-        In the end, there is a recursive call to ensure that all strings
-        are transformed to latin-1, since this is the only character set
-        that works when exporting the data to CSV.
-
-        :param value: The value of the issue field
-        :type value: any
-
-        :raise Exception: If the encoding of a string failed
-
-        :return: The parsed field value
-        :rtype: str
-        """
-        if value == None or value == "":
-            return ""
-        
-        return_string = ""
-
-        if isinstance(value, str):
-            # Make sure that special chars are working (TODO: not working atm)
-            # Check if encoding was detected
-            character_set = chardet.detect(value.encode())
-            if character_set["encoding"] and character_set["encoding"].lower() != "utf-8":
-                try:
-                    encoded_string = value.encode(character_set["encoding"])
-                    return_string = encoded_string.decode("utf-8", errors="replace")
-                    self.logger.debug(f"Changed encoding from {character_set['encoding']} to utf-8 for string: {value}")
-                except Exception as e:
-                    self.logger.warning(f"Encoding conversion failed for string: {value}. Error: {e}")
-                    return_string = value
-            else:
-                return_string = value
-
-        elif isinstance(value, float):
-            match self.config.decimal_separator:
-                case ExporterConfig.DECIMAL_SEPARATOR_COMMA:
-                    return_string = str(value).replace(".", ",")
-                case _: # ExporterConfig.DECIMAL_SEPARATOR_POINT
-                    return_string = str(value).replace(",", ".")
-            # Ensure the right encoding
-            return_string = self.__parse_field_value(return_string)
-        
-        else:
-            # Ensure the right encoding
-            return_string = self.__parse_field_value(str(value))
-        
-        return return_string
-
-
-    def __timestamp_to_date(
-        self,
-        timestamp: str,
-        pattern: str
-    ) -> str:
-        """
-        A simple helper method that strips the all time information from a date filed (datetime to date only).
-        
-        :param timestamp: A timestamp that contains a date like YYYY-MM-DD
-        :type timestamp: str
-        :param pattern: A pattern to parse and verify the given date
-        :type pattern: str
-
-        :return: The date only following YYYY-MM-DD
-        :rtype: str
-        """
-        if timestamp is None or len(str(timestamp)) == 0:
-            return ""
-
-        # Parse the string into a datetime object
-        try:
-            dt = datetime.strptime(str(timestamp), pattern)
-        except Exception:
-            # If parsing fails, return empty string to avoid crashing the whole run
-            self.logger.debug(f"Failed to parse timestamp '{timestamp}' with pattern '{pattern}'")
-            return ""
-
-        # Determine target timezone; fallback to UTC when no valid timezone is configured
-        tz_name = self.config.time_zone if getattr(self.config, 'time_zone', None) else 'UTC'
-        try:
-            target_time_zone = pytz.timezone(tz_name)
-        except Exception:
-            self.logger.debug(f"Invalid timezone '{tz_name}', falling back to UTC")
-            target_time_zone = pytz.timezone('UTC')
-
-        # If parsed datetime is naive, assume UTC before converting
-        if dt.tzinfo is None:
-            dt = pytz.UTC.localize(dt)
-
-        dt_converted = dt.astimezone(target_time_zone)
-
-        # Return date-only string
-        return dt_converted.strftime(IssueParser.DATE_PATTERN_DATE_ONLY)
-
-
-    def __display_progress_bar(
-        self,
-        number_of_issues: int,
-        iterator: int,
-        issue_id: str,
-        issue_key: str,
-        issue_summary: str
+        message: str
     ) -> None:
-        """
-        This method prints out a progress bar while the issues get parsed.
-
-        :param number_of_issues: The total number of fetched issues to parse
-        :type number_of_issues: int
-        :param iterator: Keeps track which of the fetched issues is currently parsed
-        :type iterator: int
-        :param issue_id: The id of the currently parsed issue - will be printed as well
-        :type issue_id: str
-        :param issue_key: The key of the currently parsed issue - will be printed as well
-        :type issue_key: str
-        :param issue_summary: The summary of the currently parsed issue - will be printed as well
-        :type issue_summary: str
-        
-        :return: None
-        """
-        percentage = math.ceil(iterator/number_of_issues*100)
-
-        progress_bar_length = 10
-        
-        length_done = int(percentage / progress_bar_length)
-        length_todo = progress_bar_length - length_done
-
-        progress_bar_done = "#" * length_done
-        progress_bar_todo = " " * length_todo
-
-        progress_bar = "[" + progress_bar_done + progress_bar_todo + "]"
-        
-        # Strip length to avoid malfunction SKSD-54
-        if len(issue_summary) > 32:
-            issue_summary = issue_summary[:29].strip() + "..."
-
-        end_of_print = "\r"
-        if percentage == 100:
-            end_of_print = "\n"
-        
-        print(f" {progress_bar} {iterator}/{number_of_issues} ({percentage}%) {issue_key} ({issue_id}): {issue_summary}", end=end_of_print)
-        if percentage < 100:
-            print("\033[2K", end="") # Clear entire line
+        if self.shall_pretty_print:
+            print(f"\n{message}")

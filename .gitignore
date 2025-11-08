@@ -2,6 +2,7 @@
 venv/
 .venv/
 .venv_*/
+.venv-*/
 
 # Python cache
 __pycache__/
@@ -11,3 +12,4 @@ __pycache__/
 scripts/jira_test_data_fetcher/.env
 scripts/config_test_data_generator/.env
 tests/test_data/json/*.json
+tests/test_data/yaml/*.yaml
