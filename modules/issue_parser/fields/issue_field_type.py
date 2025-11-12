@@ -25,14 +25,12 @@ class IssueFieldType:
         self,
         name: str,
         id: str,
-        shall_fetch: bool = False,
-        shall_export_to_csv: bool = False
+        fetch_only: bool = False
     ):
         # Porperties for Jira connection
         self.__name: str = name
         self.__id: str = id
-        self.__shall_fetch: bool = shall_fetch
-        self.__shall_export_to_csv = shall_export_to_csv
+        self.__fetch_only: bool = fetch_only
         # The actual data storage attribute can be private to hide complexity
         self._data: Any = None
         
@@ -62,36 +60,29 @@ class IssueFieldType:
     def is_custom_field(
         self
     ) -> bool:
-        return IssueFieldType.check_custom_field_id(id)
-
+        return IssueFieldType.check_custom_field_id(self.id)
+    
 
     @property
-    def shall_fetch(
+    def fetch_only(
         self
     ) -> bool:
-        # Must also be true if it should be exported
-        return self.__shall_fetch or self.__shall_export_to_csv
+        return self.__fetch_only
     
-    @shall_fetch.setter
-    def shall_fetch(
+    @fetch_only.setter
+    def fetch_only(
         self,
         value: bool
     ):
-        self.__shall_fetch = value
+        self.__fetch_only = value
 
 
     @property
-    def shall_export_to_csv(
+    @abstractmethod
+    def has_value_id(
         self
     ) -> bool:
-        return self.__shall_export_to_csv
-    
-    @shall_export_to_csv.setter
-    def shall_export_to_csv(
-        self,
-        value: bool
-    ):
-        self.__shall_export_to_csv = value
+        pass
 
 
     @property
@@ -108,43 +99,6 @@ class IssueFieldType:
         value: Any
     ):
         pass
-
-
-    def _ensure_utf8(
-        self,
-        value: str
-    ) -> str:
-        """
-        Ensures the input string is UTF-8 encoded and decodable.
-        If the input is None or empty, returns an empty string.
-        Tries to detect encoding and decode to UTF-8 if necessary.
-
-        :param value: The value of the issue field
-        :type value: str or any
-
-        :return: The parsed field value as UTF-8 string
-        :rtype: str
-        """
-        if not value or isinstance(value, str):
-            return ""
-
-        # If already str, try to encode/decode as utf-8 directly
-
-        try:
-            # If it can be encoded as utf-8, it's fine
-            value.encode("utf-8")
-            return value
-        except UnicodeEncodeError:
-            # Try to detect encoding and decode
-            raw_bytes = value.encode(errors="replace")
-
-        detected = chardet.detect(raw_bytes)
-        encoding = detected.get("encoding") or "utf-8"
-        try:
-            return raw_bytes.decode(encoding, errors="replace")
-        except Exception:
-            # Return a safe fallback string if decoding fails
-            return ""
 
 
     @abstractmethod
@@ -187,3 +141,40 @@ class IssueFieldType:
         :rtype: bool
         """
         return re.match(IssueFieldType.CUSTOM_FIELD_ID_PATTERN, field_id) is not None
+
+
+    @staticmethod
+    def string_to_utf8(
+        value: str
+    ) -> str:
+        """
+        Ensures the input string is UTF-8 encoded and decodable.
+        If the input is None or empty, returns an empty string.
+        Tries to detect encoding and decode to UTF-8 if necessary.
+
+        :param value: The value of the issue field
+        :type value: str or any
+
+        :return: The parsed field value as UTF-8 string
+        :rtype: str
+        """
+        if not value or not isinstance(value, str):
+            return ""
+
+        # If already str, try to encode/decode as utf-8 directly
+
+        try:
+            # If it can be encoded as utf-8, it's fine
+            value.encode("utf-8")
+            return value
+        except UnicodeEncodeError:
+            # Try to detect encoding and decode
+            raw_bytes = value.encode(errors="replace")
+
+        detected = chardet.detect(raw_bytes)
+        encoding = detected.get("encoding") or "utf-8"
+        try:
+            return raw_bytes.decode(encoding, errors="replace")
+        except Exception:
+            # Return a safe fallback string if decoding fails
+            return ""

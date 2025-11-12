@@ -6,7 +6,7 @@ import yaml
 import re
 from typing import Any
 
-from modules.exporter_config.workflow import Workflow
+from modules.issue_parser.workflow import Workflow
 from modules.issue_parser.fields.issue_field_type import IssueFieldType
 
 class ExporterConfig:
@@ -37,6 +37,7 @@ class ExporterConfig:
     YAML__CONNECTION__DOMAIN = "Domain"
     YAML__CONNECTION__USERNAME = "Username"
     YAML__CONNECTION__API_TOKEN = "API Token"
+    YAML__CONNECTION__CLOUD = "Cloud"
     YAML__SEARCH_CRITERIA = "Search Criteria"
     YAML__SEARCH_CRITERIA__PROJECTS = "Projects"
     YAML__SEARCH_CRITERIA__ISSUE_TYPES = "Issue Types"
@@ -59,7 +60,9 @@ class ExporterConfig:
 
     # Issue field display names - Always exported
     ISSUE_FIELD_NAME__ISSUE_KEY = "Key"
+    ISSUE_FIELD_ID__ISSUE_KEY = "key"
     ISSUE_FIELD_NAME__ISSUE_ID = "ID"
+    ISSUE_FIELD_ID__ISSUE_ID = "id"
     # Descriptive fields
     ISSUE_FIELD_NAME__ISSUE_TYPE = "Type"
     ISSUE_FIELD_NAME__SUMMARY = "Summary"
@@ -85,8 +88,6 @@ class ExporterConfig:
 
     # Mapping of issue field display names to Jira field IDs
     STANDARD_ISSUE_FIELDS = {
-        ISSUE_FIELD_NAME__ISSUE_KEY: "key",
-        ISSUE_FIELD_NAME__ISSUE_ID: "id",
         ISSUE_FIELD_NAME__ISSUE_TYPE: "issuetype",
         ISSUE_FIELD_NAME__SUMMARY: "summary",
         ISSUE_FIELD_NAME__PARENT: "parent",
@@ -99,7 +100,7 @@ class ExporterConfig:
         ISSUE_FIELD_NAME__CREATED: "created",
         ISSUE_FIELD_NAME__DUE_DATE: "duedate",
         ISSUE_FIELD_NAME__UPDATED: "updated",
-        ISSUE_FIELD_NAME__RESOLVED: "resolved",
+        ISSUE_FIELD_NAME__RESOLVED: "resolutiondate",
         ISSUE_FIELD_NAME__LABELS: "labels",
         ISSUE_FIELD_NAME__COMPONENTS: "components",
         ISSUE_FIELD_NAME__AFFECTED_VERSIONS: "versions",
@@ -138,6 +139,7 @@ class ExporterConfig:
         self.__domain: str = ""
         self.__username: str = ""
         self.__api_token: str = ""
+        self.__is_cloud: bool = True
 
         # Properties for JQL request
         self.__jql_query: str = ""
@@ -152,7 +154,7 @@ class ExporterConfig:
         self.__export_value_ids: bool = False
 
         # Workflow timestamp export
-        self.__workflow: Workflow = None
+        self.__workflow: dict = {}
 
         # Other properties
         self.__standard_field_prefix: str = ""
@@ -207,6 +209,28 @@ class ExporterConfig:
         else:
             raise ValueError(f"The given domain '{value}' does not fit the pattern 'https://[YOUR-NAME].atlassian.net'. Please check the YAML configuration file.")
         self.__log_attribute(ExporterConfig.YAML__CONNECTION, ExporterConfig.YAML__CONNECTION__DOMAIN, value)
+
+
+    @property
+    def is_cloud(self) -> bool:
+        """
+        Whether the Jira instance is a Cloud instance.
+
+        Returns:
+            True if the Jira instance is a Cloud instance, False otherwise.
+        """
+        return self.__is_cloud
+    
+    @is_cloud.setter
+    def is_cloud(self, value: bool) -> None:
+        """
+        Set whether the Jira instance is a Cloud instance.
+
+        Args:
+            value: True if the Jira instance is a Cloud instance, False otherwise.
+        """
+        self.__is_cloud = value
+        self.__log_attribute(ExporterConfig.YAML__CONNECTION, ExporterConfig.YAML__CONNECTION__CLOUD, value)
 
 
     @property
@@ -319,7 +343,6 @@ class ExporterConfig:
                    display names for standard fields.
         """
         self.__standard_issue_fields = value
-        self.__log_attribute(ExporterConfig.YAML__MANDATORY, ExporterConfig.YAML__MANDATORY__STANDARD_FIELDS, str(value))
 
 
     @property
@@ -482,7 +505,7 @@ class ExporterConfig:
             True if a workflow is configured and contains at least one status,
             False otherwise.
         """
-        return self.workflow is not None and self.workflow.number_of_statuses > 0
+        return len(self.workflow) > 0
 
 
     @property
@@ -610,6 +633,7 @@ class ExporterConfig:
             self.domain = self.__check_attribute(section_connection, ExporterConfig.YAML__CONNECTION__DOMAIN, is_mandatory=False)
             self.username = self.__check_attribute(section_connection, ExporterConfig.YAML__CONNECTION__USERNAME, is_mandatory=False)
             self.api_token = self.__check_attribute(section_connection, ExporterConfig.YAML__CONNECTION__API_TOKEN, is_mandatory=False)
+            self.is_cloud = self.__check_attribute(section_connection, ExporterConfig.YAML__CONNECTION__CLOUD, is_mandatory=False) or True # Currently default to True - Jira Cloud only
 
         # Set up the JQL query to retrieve the right issues from Jira.
         section_search_criteria = self.__check_config_section(data, ExporterConfig.YAML__SEARCH_CRITERIA, True)
@@ -629,12 +653,12 @@ class ExporterConfig:
         # Set up all standard fields that should be exported
         section_standard_fields = self.__check_config_section(data, ExporterConfig.YAML__STANDARD_FIELDS, False)
         if section_standard_fields:
-            self.__standard_issue_fields = self.__collect_standard_issue_fields(section_standard_fields)
+            self.standard_issue_fields = self.__collect_standard_issue_fields(section_standard_fields)
 
         # Set up all defined custom fields that should be exported
         section_custom_fields = self.__check_config_section(data, ExporterConfig.YAML__CUSTOM_FIELDS, False)
         if section_custom_fields:
-            self.__collect_custom_issue_fields(section_custom_fields)
+            self.custom_issue_fields = self.__collect_custom_issue_fields(section_custom_fields)
 
         # Set up all miscellaneous configuration information.
         section_misc = self.__check_config_section(data, ExporterConfig.YAML__MISC, False)
@@ -646,9 +670,7 @@ class ExporterConfig:
             self.time_zone = self.__check_attribute(section_misc, ExporterConfig.YAML__MISC__TIME_ZONE)
 
         # Set up all workflow-related information.
-        section_workflow = self.__check_config_section(data, ExporterConfig.YAML__WORKFLOW, False)
-        if section_workflow:
-            self.__workflow = Workflow(section_workflow, self.logger)
+        self.__workflow = self.__check_config_section(data, ExporterConfig.YAML__WORKFLOW, False)
 
         self.__pretty_print(" ... done.")
 
@@ -793,7 +815,7 @@ class ExporterConfig:
         return jql_query
 
 
-    def __collect_standard_issue_fields(self, section_standard_fields: dict) -> None:
+    def __collect_standard_issue_fields(self, section_standard_fields: dict) -> dict:
         """
         Convert YAML selection of standard fields into internal mapping.
 
@@ -812,15 +834,17 @@ class ExporterConfig:
             if standard_field_name in ExporterConfig.STANDARD_ISSUE_FIELDS.keys():
                 if standard_field_name == ExporterConfig.ISSUE_FIELD_NAME__FLAGGED:
                     standard_field_id = self.standard_issue_field_id_flagged
-                    shall_export = True
                 else:
                     standard_field_id = ExporterConfig.STANDARD_ISSUE_FIELDS[standard_field_name]
                 
                 if shall_export:
                     standard_issue_fields[standard_field_id] = standard_field_name
+                    self.logger.debug(f"Standard field '{standard_field_name}' with id '{standard_field_id}' has been selected for export.")
+                else:
+                    self.logger.debug(f"Standard field '{standard_field_name}' with id '{standard_field_id}' has NOT been selected for export.")
             else:
                 self.logger.warning(f"Standard field '{standard_field_name}' with id '{standard_field_id}' is not recognized and will be ignored.")
-            
+
         return standard_issue_fields
 
 
@@ -843,6 +867,7 @@ class ExporterConfig:
         for custom_field_name, custom_field_id in section_custom_fields.items():
             if IssueFieldType.check_custom_field_id(custom_field_id):
                 custom_issue_fields[custom_field_id] = custom_field_name
+                self.logger.debug(f"Custom field '{custom_field_name}' with id '{custom_field_id}' has been selected for export.")
             else:
                 self.logger.warning(f"Custom field ID '{custom_field_id}' for field '{custom_field_name}' is not valid and will be ignored.")
         return custom_issue_fields

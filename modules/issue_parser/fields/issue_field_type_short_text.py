@@ -6,6 +6,12 @@ class IssueFieldTypeShortText(IssueFieldType):
     """
 
     @property
+    def has_value_id(
+        self
+    ) -> bool:
+        return False
+
+    @property
     def data(
         self
     ) -> str:
@@ -30,7 +36,7 @@ class IssueFieldTypeShortText(IssueFieldType):
         :return: String with semicolons escaped
         """
         # Ensure the value is a string and properly encoded
-        return_string = self._ensure_utf8(self.data)
+        return_string = IssueFieldType.string_to_utf8(self.data)
 
         ### The following code is commented out since this is handled by Pandas when writing the CSV file
         # Remove existing surrounding double quotes, if any

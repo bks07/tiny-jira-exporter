@@ -4,6 +4,7 @@ Connection:
     Domain: https://example.atlassian.net
     Username: example@address.com
     API Token: MYEXAMPLETOKENFROMATLASSIANID
+    Cloud: !!bool Yes
 
 # This section defines what you are searching for.
 # You must at least define one project key or a filter. If the project key is defined, the filter will be ignored.
@@ -32,6 +33,7 @@ Search Criteria:
 
 # Mandatory attributes to define
 Mandatory:
+    Parent Link Field ID: customfield_10018 # Make sure that this is the correct id for the custom field 'Parent Link'
     Flagged Field ID: customfield_10021 # Make sure that this is the correct id for the custom field 'Flagged'
     Decimal Separator: Comma # Choose between 'Comma' and 'Point'
     # Choose whether to export the IDs of fields values in addition to their values.

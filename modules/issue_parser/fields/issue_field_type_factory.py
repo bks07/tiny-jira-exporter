@@ -62,18 +62,16 @@ class IssueFieldTypeFactory:
         schema_type: str,
         name: str,
         id: str,
-        shall_fetch: bool,
-        shall_export_to_csv: bool,
         logger: logging.Logger
     ) -> IssueFieldType:
         """
         Instantiates the appropriate IssueField subclass.
         
         Args:
-            field_name: The display name of the field.
-            field_id: The API ID of the field (e.g., 'customfield_10000').
-            field_type_key: The string identifier of the field type (from schema.custom/system).
-            raw_value: The initial data value to be set.
+            schema_type: The schema type identifier.
+            name: The display name of the field.
+            id: The API ID of the field (e.g., 'customfield_10000').
+            logger: Logger instance for error handling.
             
         Returns:
             An instance of an IssueFieldType subclass.
@@ -83,19 +81,19 @@ class IssueFieldTypeFactory:
         """
         
         # 1. Look up the corresponding Python class from the map
-        if schema_type in IssueFieldTypeFactory.FIELD_TYPE_MAPPING.keys():
-            field_class = IssueFieldTypeFactory.FIELD_TYPE_MAPPING.get(schema_type)
+        if schema_type in IssueFieldTypeFactory.FIELD_TYPE_MAPPING:
+            field_class = IssueFieldTypeFactory.FIELD_TYPE_MAPPING[schema_type]
         else:
             # Handle unknown or unmapped fields (e.g., an app field you don't care about)
             logger.warning(f"Unknown scheme type '{schema_type}'. Falling back to short text field type.")
             # You might define a generic IssueField subclass here for unhandled types
-            return IssueFieldTypeShortText(name, id, shall_fetch, shall_export_to_csv) # Assuming IssueField is not abstract or has a concrete implementation
+            return IssueFieldTypeShortText(name, id) # Assuming IssueField is not abstract or has a concrete implementation
 
         # 2. Instantiate the correct class and set its value
         # The specific constructor arguments will depend on your subclass design.
         try:
             # Create instance with initial name/id
-            return field_class(name, id, shall_fetch, shall_export_to_csv)
+            return field_class(name, id)
             
         except Exception as e:
             # Handle instantiation or validation errors (e.g., wrong value type)

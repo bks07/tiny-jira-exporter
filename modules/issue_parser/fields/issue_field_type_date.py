@@ -33,7 +33,7 @@ class IssueFieldTypeDate(IssueFieldType):
         :return: Date string in 'YYYY-MM-DD' format
         """
         # Ensure the value is a string and properly encoded
-        return self._ensure_utf8(self.data)
+        return IssueFieldType.string_to_utf8(self.data)
 
 
     def get_value_id_for_csv(self):

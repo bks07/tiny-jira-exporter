@@ -69,8 +69,8 @@ class ProgressBar:
         progress_bar = "[" + progress_bar_done + progress_bar_todo + "]"
         
         # Strip length to avoid malfunction SKSD-54
-        if len(issue_summary) > 32:
-            issue_summary = issue_summary[:29].strip() + "..."
+        if len(message) > 32:
+            message = message[:29].strip() + "..."
 
         end_of_print = "\r"
         if percentage == 100:

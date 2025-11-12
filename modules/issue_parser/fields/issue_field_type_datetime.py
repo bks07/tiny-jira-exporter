@@ -15,8 +15,8 @@ class IssueFieldTypeDatetime(IssueFieldType):
     DEFAULT_RETURN_PATTERN = RETURN_DATE_ONLY
     DEFAULT_TIME_ZONE = "UTC"
 
-    def __init__(self, field_name: str, jira_field_name: str, shall_fetch: bool = False, shall_export_to_csv: bool = False):
-        super().__init__(field_name, jira_field_name, shall_fetch, shall_export_to_csv)
+    def __init__(self, field_name: str, jira_field_name: str, fetch_only: bool = False) -> None:
+        super().__init__(field_name, jira_field_name, fetch_only)
         self.__return_pattern = IssueFieldTypeDatetime.DEFAULT_RETURN_PATTERN
         self.__target_time_zone = pytz.timezone(IssueFieldTypeDatetime.DEFAULT_TIME_ZONE)
         self._data: datetime = None
@@ -90,7 +90,7 @@ class IssueFieldTypeDatetime(IssueFieldType):
         :return: String with semicolons escaped
         """
         # Enclose the string in double quotes so semicolons are treated as part of the text
-        return self._ensure_utf8(self.data)
+        return IssueFieldType.string_to_utf8(self.data)
 
 
     def get_value_id_for_csv(self):

@@ -127,8 +127,8 @@ def main():
         
         # Parse all received issues
         parser = IssueParser(logger, config, shall_pretty_print)
-        parser.fetch_and_parse_issues()
-        parser.export_to_csv(csv_output_file_location)
+        parsed_issues = parser.fetch_and_parse_issues()
+        parser.export_to_csv(parsed_issues, csv_output_file_location)
 
     except Exception as error:
         logger.error(f"Unexpected error: {error}\nScript has been canceled.\n{traceback.format_exc()}")

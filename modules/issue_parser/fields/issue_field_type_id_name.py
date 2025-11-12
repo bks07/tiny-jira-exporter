@@ -16,7 +16,7 @@ class IssueFieldTypeIdName(IssueFieldType):
             return ""
         
         # Ensure the value is a string and properly encoded
-        return self._ensure_utf8(self.data['value'])
+        return IssueFieldType.string_to_utf8(self.data['value'])
 
 
     def get_value_id_for_csv(self):
@@ -30,4 +30,4 @@ class IssueFieldTypeIdName(IssueFieldType):
             return ""
         
         # Ensure the id is a string and properly encoded
-        return self._ensure_utf8(self.data['id'])
+        return IssueFieldType.string_to_utf8(self.data['id'])
