@@ -7,59 +7,109 @@ import chardet
 
 class IssueFieldType:
     """
-    The general class for issue fields.
-    It is a helper for the exporter config class.
+    Abstract base class for handling different types of Jira issue fields.
 
-    :param name: The name of the issue field like "Key"
-    :type name: str
-    :param id: The id of the issue field like "issuekey" or "customfield_10018"
-    :type id: str
-    :param shall_fetch: If true, the exporter will fetch this field from Jira
-    :type shall_fetch: bool
-    :param shall_export_to_csv: If true, the exporter will include this field in the export CSV file
-    :param shall_export_to_csv: bool
+    Provides a common interface for parsing, storing, and formatting various
+    Jira field types (text, date, user, array, etc.). Each field type handles
+    its specific data structure and formatting requirements while maintaining
+    a consistent API for the export process.
+
+    This class manages field metadata (ID, name, fetch behavior) and provides
+    utility methods for field identification and string processing. Concrete
+    subclasses implement the actual data parsing and value extraction logic.
+
+    Example:
+        # Typically instantiated through IssueFieldTypeFactory
+        field = IssueFieldTypeFactory.create_field_type(
+            field_id="status",
+            field_name="Status",
+            schema_type="string"
+        )
+        field.data = raw_jira_field_data
+        formatted_value = field.value
+
+    Attributes:
+        CUSTOM_FIELD_ID_PATTERN: Regex pattern for identifying custom fields.
+        __id: Jira field identifier (e.g., 'status', 'customfield_10001').
+        __name: Human-readable field name for export headers.
+        __fetch_only: Whether field is fetched but excluded from CSV export.
+        _data: Raw field data from Jira API (managed by subclasses).
     """
     CUSTOM_FIELD_ID_PATTERN = r"^customfield_\d+$"
 
     def __init__(
         self,
-        name: str,
         id: str,
+        name: str,
         fetch_only: bool = False
     ):
-        # Porperties for Jira connection
-        self.__name: str = name
+        """
+        Initialize a new IssueFieldType instance with field metadata.
+
+        Sets up the basic field properties that control how the field is
+        identified, displayed, and handled during the export process.
+
+        Args:
+            id: Jira field identifier (e.g., 'status', 'customfield_10001').
+            name: Human-readable field name for CSV export headers.
+            fetch_only: If True, field is fetched but excluded from CSV export.
+        """
+        # Properties for Jira connection
         self.__id: str = id
+        self.__name: str = name
         self.__fetch_only: bool = fetch_only
+
         # The actual data storage attribute can be private to hide complexity
         self._data: Any = None
-        
-
-    @property
-    def name(
-        self
-    ) -> str:
-        return self.__name
-    
-    @name.setter
-    def name(
-        self,
-        value: str
-    ):
-        self.__name = value
-
 
     @property
     def id(
         self
     ) -> str:
+        """
+        Get the Jira field identifier.
+
+        Returns the unique identifier used by Jira to reference this field
+        in API requests and responses. Standard fields have names like 'status'
+        or 'assignee', while custom fields follow the pattern 'customfield_XXXXX'.
+
+        Returns:
+            Jira field identifier string.
+        """
         return self.__id
+
+
+    @property
+    def name(
+        self
+    ) -> str:
+        """
+        Get the human-readable field name.
+
+        Returns the display name used in CSV export headers and user-facing
+        output. This provides a more readable alternative to the technical
+        field ID for end-user consumption.
+
+        Returns:
+            Human-readable field name string.
+        """
+        return self.__name
 
 
     @property
     def is_custom_field(
         self
     ) -> bool:
+        """
+        Check if this field is a custom field.
+
+        Determines whether this field is a Jira custom field by examining
+        the field ID pattern. Custom fields follow the format 'customfield_XXXXX'
+        where XXXXX is a numeric identifier.
+
+        Returns:
+            True if this is a custom field, False for standard Jira fields.
+        """
         return IssueFieldType.check_custom_field_id(self.id)
     
 
@@ -67,6 +117,16 @@ class IssueFieldType:
     def fetch_only(
         self
     ) -> bool:
+        """
+        Check if this field is fetch-only (excluded from CSV export).
+
+        Indicates whether this field should be retrieved from Jira but
+        excluded from the final CSV export. Useful for fields needed for
+        processing (like workflow analysis) but not for end-user output.
+
+        Returns:
+            True if field should be fetched but not exported, False otherwise.
+        """
         return self.__fetch_only
     
     @fetch_only.setter
@@ -74,71 +134,121 @@ class IssueFieldType:
         self,
         value: bool
     ):
+        """
+        Set the fetch-only status for this field.
+
+        Controls whether this field should be included in CSV export after
+        being fetched from Jira. This can be changed dynamically based on
+        configuration requirements or processing needs.
+
+        Args:
+            value: True to exclude from export, False to include in export.
+        """
         self.__fetch_only = value
-
-
-    @property
-    @abstractmethod
-    def has_value_id(
-        self
-    ) -> bool:
-        pass
-
 
     @property
     @abstractmethod
     def data(
         self
     ) -> Any:
+        """
+        Get the raw field data from Jira API.
+
+        Abstract property that must be implemented by subclasses to return
+        the stored raw field data as received from the Jira API. The data
+        structure varies by field type (dict, list, string, etc.).
+
+        Returns:
+            Raw field data in its original format from Jira API.
+        """
         pass
     
     @data.setter
     @abstractmethod
     def data(
         self,
-        value: Any
+        value: dict
     ):
+        """
+        Set the raw field data from Jira API.
+
+        Abstract setter that must be implemented by subclasses to store
+        and process raw field data from Jira API responses. Subclasses
+        should validate and transform the data as needed for their type.
+
+        Args:
+            value: Raw field data from Jira API response.
+        """
         pass
 
-
+    @property
     @abstractmethod
-    def get_value_for_csv(
+    def value(
         self
-    ) -> str:
+    ) -> Any:
         """
-        Returns the value as a string, with semicolons escaped.
+        Get the formatted field value for CSV export.
 
-        :param value: The value to be exported
-        :return: String with semicolons escaped
+        Abstract property that must be implemented by subclasses to return
+        a human-readable, CSV-compatible representation of the field data.
+        This is typically a string or simple value suitable for export.
+
+        Returns:
+            Formatted field value ready for CSV export.
         """
         pass
 
 
+    @property
     @abstractmethod
-    def get_value_id_for_csv(
+    def value_id(
         self
-    ) -> str:
+    ) -> Any:
         """
-        Returns the ID of the value as a string, with semicolons escaped.
+        Get the internal ID representation of the field value.
 
-        :param value: The value to be exported
-        :return: String with semicolons escaped
+        Abstract property that must be implemented by subclasses to return
+        the internal identifier for fields that have both display names
+        and internal IDs (e.g., status ID vs status name, user ID vs display name).
+
+        Returns:
+            Internal ID value for the field, or None if not applicable.
         """
         pass
 
+    @property
+    @abstractmethod
+    def has_value_id(
+        self
+    ) -> bool:
+        """
+        Check if this field type supports internal ID values.
+
+        Abstract property that must be implemented by subclasses to indicate
+        whether the field has separate display and ID representations.
+        Used to determine if value_id property should be accessed.
+
+        Returns:
+            True if field has internal ID values, False otherwise.
+        """
+        pass
 
     @staticmethod
     def check_custom_field_id(
         field_id: str
     ) -> bool:
         """
-        Checks if the given field ID matches the custom field pattern.
+        Check if a field ID matches the Jira custom field pattern.
 
-        :param field_id: The field ID to check
-        :type field_id: str
+        Validates whether the provided field ID follows the standard Jira
+        custom field naming convention 'customfield_XXXXX' where XXXXX is
+        a numeric identifier assigned by Jira.
 
-        :return: True if it is a custom field ID, False otherwise
-        :rtype: bool
+        Args:
+            field_id: Field identifier to validate.
+
+        Returns:
+            True if the ID matches custom field pattern, False otherwise.
         """
         return re.match(IssueFieldType.CUSTOM_FIELD_ID_PATTERN, field_id) is not None
 
@@ -148,15 +258,22 @@ class IssueFieldType:
         value: str
     ) -> str:
         """
-        Ensures the input string is UTF-8 encoded and decodable.
-        If the input is None or empty, returns an empty string.
-        Tries to detect encoding and decode to UTF-8 if necessary.
+        Convert input string to UTF-8 with encoding detection and error handling.
 
-        :param value: The value of the issue field
-        :type value: str or any
+        Ensures string data is properly UTF-8 encoded for safe CSV export.
+        Handles various input encodings by detecting the source encoding
+        and converting to UTF-8. Provides fallback handling for problematic
+        characters or encoding errors.
 
-        :return: The parsed field value as UTF-8 string
-        :rtype: str
+        Args:
+            value: Input string value, potentially in unknown encoding.
+
+        Returns:
+            UTF-8 encoded string, or empty string if input is None/invalid.
+
+        Note:
+            Uses chardet library for encoding detection and 'replace' error
+            handling to ensure robust processing of international characters.
         """
         if not value or not isinstance(value, str):
             return ""

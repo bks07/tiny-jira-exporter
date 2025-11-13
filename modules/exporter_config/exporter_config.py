@@ -6,7 +6,6 @@ import yaml
 import re
 from typing import Any
 
-from modules.issue_parser.workflow import Workflow
 from modules.issue_parser.fields.issue_field_type import IssueFieldType
 
 class ExporterConfig:
@@ -214,20 +213,21 @@ class ExporterConfig:
     @property
     def is_cloud(self) -> bool:
         """
-        Whether the Jira instance is a Cloud instance.
+        Jira deployment type indicator.
 
         Returns:
-            True if the Jira instance is a Cloud instance, False otherwise.
+            True if connecting to Jira Cloud (Atlassian-hosted), False for 
+            Jira Server or Data Center (self-hosted) instances.
         """
         return self.__is_cloud
     
     @is_cloud.setter
     def is_cloud(self, value: bool) -> None:
         """
-        Set whether the Jira instance is a Cloud instance.
+        Set the Jira deployment type.
 
         Args:
-            value: True if the Jira instance is a Cloud instance, False otherwise.
+            value: True for Jira Cloud instances, False for Server/Data Center.
         """
         self.__is_cloud = value
         self.__log_attribute(ExporterConfig.YAML__CONNECTION, ExporterConfig.YAML__CONNECTION__CLOUD, value)
@@ -485,13 +485,14 @@ class ExporterConfig:
 
 
     @property
-    def workflow(self) -> Workflow:
+    def workflow(self) -> dict:
         """
-        Workflow configuration for status tracking and transitions.
+        Raw workflow configuration dictionary from YAML.
 
         Returns:
-            The Workflow object containing status definitions and transition
-            information, or None if no workflow is configured.
+            Dictionary containing the workflow configuration mapping category 
+            names to lists of status names, or empty dict if no workflow 
+            is configured.
         """
         return self.__workflow
 
@@ -678,7 +679,7 @@ class ExporterConfig:
 
 
     #######################
-    ### SUPPORT METHODS ###
+    ### PRIVATE METHODS ###
     #######################
 
 
@@ -848,7 +849,7 @@ class ExporterConfig:
         return standard_issue_fields
 
 
-    def __collect_custom_issue_fields(self, section_custom_fields: dict) -> None:
+    def __collect_custom_issue_fields(self, section_custom_fields: dict) -> dict:
         """
         Validate and return custom fields to export.
 

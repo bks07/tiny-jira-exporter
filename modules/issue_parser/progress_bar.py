@@ -3,7 +3,23 @@ import math
 
 class ProgressBar:
     """
-    This class contains methods to display a progress bar while parsing issues.
+    Display a console progress bar for tracking long-running operations.
+
+    Provides visual feedback during iterative processes like issue parsing by
+    showing completion percentage, progress bar visualization, and current item
+    information. The progress bar automatically handles line clearing and
+    formatting for clean console output.
+
+    Example:
+        progress = ProgressBar(total_number_of_items=100)
+        for i in range(100):
+            progress.next_item()
+            progress.display(f"Processing item {i}")
+
+    Attributes:
+        __total_number_of_items: Total number of items to process.
+        __current_item_index: Current position in the processing sequence.
+        __length: Visual length of the progress bar in characters.
     """
     def __init__(
         self,
@@ -11,7 +27,14 @@ class ProgressBar:
         length: int = 10
     ) -> None:
         """
-        Initialize the ProgressBar instance.
+        Initialize a new ProgressBar instance.
+
+        Sets up the progress tracking state and visual parameters for the
+        progress bar display. The current item index starts at zero.
+
+        Args:
+            total_number_of_items: Total number of items to be processed.
+            length: Visual length of the progress bar in characters (default: 10).
         """
         self.__total_number_of_items = total_number_of_items
         self.__current_item_index = 0
@@ -21,20 +44,11 @@ class ProgressBar:
         self,
     ) -> None:
         """
-        Update the progress bar display.
+        Advance the progress counter to the next item.
 
-        :param total_number_of_items: The total number of items to process
-        :type total_number_of_items: int
-        :param current_item_index: The current index of the item being processed
-        :type current_item_index: int
-        :param item_id: The id of the currently processed item - will be printed as well
-        :type item_id: str
-        :param item_key: The key of the currently processed item - will be printed as well
-        :type item_key: str
-        :param item_summary: The summary of the currently processed item - will be printed as well
-        :type item_summary: str
-        
-        :return: None
+        Increments the current item index to reflect that one more item has
+        been processed. This should be called once for each completed item
+        before calling display() to show the updated progress.
         """
         self.__current_item_index += 1
 
@@ -43,20 +57,20 @@ class ProgressBar:
         message: str
     ) -> None:
         """
-        This method prints out a progress bar while the issues get parsed.
+        Display the current progress bar with status message.
 
-        :param number_of_issues: The total number of fetched issues to parse
-        :type number_of_issues: int
-        :param iterator: Keeps track which of the fetched issues is currently parsed
-        :type iterator: int
-        :param issue_id: The id of the currently parsed issue - will be printed as well
-        :type issue_id: str
-        :param issue_key: The key of the currently parsed issue - will be printed as well
-        :type issue_key: str
-        :param issue_summary: The summary of the currently parsed issue - will be printed as well
-        :type issue_summary: str
-        
-        :return: None
+        Renders a visual progress bar showing completion percentage, progress
+        visualization, item counts, and a custom status message. The display
+        uses carriage returns for dynamic updates and clears the line on
+        completion. Long messages are automatically truncated to prevent
+        display issues.
+
+        Args:
+            message: Status message to display alongside the progress bar.
+                   Messages longer than 32 characters are truncated with "...".
+
+        Note:
+            The progress bar format: [####      ] 40/100 (40%) Processing item...
         """
         percentage = math.ceil(self.__current_item_index/self.__total_number_of_items*100)
 
@@ -70,7 +84,7 @@ class ProgressBar:
         
         # Strip length to avoid malfunction SKSD-54
         if len(message) > 32:
-            message = message[:29].strip() + "..."
+            message = f"{message[:29].strip()}..."
 
         end_of_print = "\r"
         if percentage == 100:

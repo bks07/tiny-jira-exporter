@@ -19,25 +19,15 @@ class IssueFieldTypeDatetime(IssueFieldType):
         super().__init__(field_name, jira_field_name, fetch_only)
         self.__return_pattern = IssueFieldTypeDatetime.DEFAULT_RETURN_PATTERN
         self.__target_time_zone = pytz.timezone(IssueFieldTypeDatetime.DEFAULT_TIME_ZONE)
+        
+        self.__value: str = ""
+
         self._data: datetime = None
 
 
     @property
     def data(self) -> str:
-        if self._data is None:
-            return ""
-        try:
-            dt_converted = self._data.astimezone(self.__target_time_zone)
-            if self.__return_pattern == IssueFieldTypeDatetime.RETURN_DATE_TIME:
-                return dt_converted.strftime("%Y-%m-%d %H:%M:%S %z")
-            elif self.__return_pattern == IssueFieldTypeDatetime.RETURN_UNIX_TIMESTAMP:
-                return str(int(dt_converted.timestamp()))
-            elif self.__return_pattern == IssueFieldTypeDatetime.RETURN_UNIX_TIMESTAMP_MILLIS:
-                return str(int(dt_converted.timestamp() * 1000))
-            else:  # RETURN_DATE_ONLY or default
-                return dt_converted.strftime("%Y-%m-%d")
-        except Exception:
-            return ""
+        return str(self._data)
 
     @data.setter
     def data(
@@ -45,15 +35,46 @@ class IssueFieldTypeDatetime(IssueFieldType):
         value: str
     ) -> None:
         self._data = None
-        if value is None or not isinstance(value, str) or len(value) == 0:
+        if value is None or not isinstance(value, str):
+            raise Exception(f"Value '{value}' is not a string and cannot be parsed as a date")
+        elif len(value) == 0:
+            self._data = None
+            self.__value = ""
+        else:
             # Parse the string into a datetime object to check its validity
             try:
                 self._data = datetime.strptime(value, IssueFieldTypeDatetime.DATE_PATTERN)
-            except Exception:
-                raise Exception(f"Failed to parse date value '{self._value}' with pattern '{IssueFieldTypeDatetime.DATE_PATTERN}'")
-        else:
-            raise Exception(f"Value '{self._value}' is not a string and cannot be parsed as a date")
 
+                dt_converted = self._data.astimezone(self.__target_time_zone)
+                if self.__return_pattern == IssueFieldTypeDatetime.RETURN_DATE_TIME:
+                    self.__value = IssueFieldType.string_to_utf8(self._data.strftime("%Y-%m-%d %H:%M:%S %z"))
+                elif self.__return_pattern == IssueFieldTypeDatetime.RETURN_UNIX_TIMESTAMP:
+                    self.__value = IssueFieldType.string_to_utf8(str(int(dt_converted.timestamp())))
+                elif self.__return_pattern == IssueFieldTypeDatetime.RETURN_UNIX_TIMESTAMP_MILLIS:
+                    self.__value = IssueFieldType.string_to_utf8(str(int(dt_converted.timestamp() * 1000)))
+                else:  # RETURN_DATE_ONLY or default
+                    self.__value = IssueFieldType.string_to_utf8(dt_converted.strftime("%Y-%m-%d"))
+            except Exception:
+                raise Exception(f"Failed to parse date value '{value}' with pattern '{IssueFieldTypeDatetime.DATE_PATTERN}'")
+
+
+    @property
+    def value(
+        self
+    ) -> str:
+        return self.__value
+
+    @property
+    def has_value_id(
+        self
+    ) -> bool:
+        return False # Date fields do not have an associated ID as they are string values only
+
+    @property
+    def value_id(
+        self
+    ) -> str:
+        return "" # Date fields do not have an associated ID as they are string values only
 
     @property
     def return_pattern(self) -> int:
@@ -80,23 +101,3 @@ class IssueFieldTypeDatetime(IssueFieldType):
         except Exception:
             self.__target_time_zone = pytz.timezone(IssueFieldTypeDatetime.DEFAULT_TIME_ZONE)
             raise ValueError(f"The configured time zone '{value}' is invalid. Please check the configuration. Falling back to '{IssueFieldTypeDatetime.DEFAULT_TIME_ZONE}'.")
-
-
-    def get_value_for_csv(self) -> str:
-        """
-        Returns the value as a string, with semicolons escaped.
-
-        :param value: The value to be exported
-        :return: String with semicolons escaped
-        """
-        # Enclose the string in double quotes so semicolons are treated as part of the text
-        return IssueFieldType.string_to_utf8(self.data)
-
-
-    def get_value_id_for_csv(self):
-        """
-        Returns the ID of the value as a string, with semicolons escaped.
-
-        :return: Empty string since date fields do not have an ID
-        """         
-        return ""

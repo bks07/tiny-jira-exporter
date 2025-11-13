@@ -5,29 +5,42 @@ class IssueFieldTypeIdName(IssueFieldType):
     Represents a short text issue field, escaping semicolons for semicolon-delimited CSV.
     """
 
-    def get_value_for_csv(self):
-        """
-        Returns the value as a string, with semicolons escaped.
-
-        :param value: The value to be exported
-        :return: String with semicolons escaped
-        """
-        if self.data['name'] is None:
-            return ""
-        
-        # Ensure the value is a string and properly encoded
-        return IssueFieldType.string_to_utf8(self.data['value'])
 
 
-    def get_value_id_for_csv(self):
-        """
-        Returns the ID of the value as a string, with semicolons escaped.
+    @property
+    def data(
+        self
+    ) -> str:
+        return self._data
 
-        :param value: The value to be exported
-        :return: String with semicolons escaped
-        """
-        if self.data['id'] is None:
-            return ""
-        
-        # Ensure the id is a string and properly encoded
-        return IssueFieldType.string_to_utf8(self.data['id'])
+    @data.setter
+    def data(
+        self,
+        value: dict
+    ) -> None:
+        if value is None or \
+            not isinstance(value, dict) or \
+            "name" not in value or \
+            "id" not in value:
+            self._data = ""
+            raise ValueError("IdName field must be a dict with 'id' and 'name' keys.")
+        else:
+            self._data = value
+
+    @property
+    def value(
+        self
+    ) -> str:
+        return IssueFieldType.string_to_utf8(self._data.get("name", ""))
+    
+    @property
+    def value_id(
+        self
+    ) -> str:
+        return IssueFieldType.string_to_utf8(self._data.get("id", ""))
+    
+    @property
+    def has_value_id(
+        self
+    ) -> bool:
+        return True

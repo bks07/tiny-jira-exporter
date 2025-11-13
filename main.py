@@ -1,6 +1,28 @@
 #!/usr/bin/env python3
 # coding: utf8
 
+"""
+Tiny Jira Exporter - Main entry point for Jira issue data export.
+
+This module provides a command-line interface for extracting Jira issues and
+their associated workflow data into CSV format. It handles configuration loading,
+argument parsing, logging setup, and orchestrates the complete export process
+from Jira API connection to CSV file generation.
+
+The exporter supports:
+- JQL-based issue filtering
+- Custom field extraction
+- Workflow analysis with time-in-status calculations
+- Configurable output formatting
+- Comprehensive logging and error handling
+
+Usage:
+    python main.py -c config.yaml -o output.csv -l debug
+
+Example:
+    python main.py --config conf/default.yaml --output export/issues.csv --loglevel info
+"""
+
 import sys
 import os
 import argparse
@@ -11,6 +33,30 @@ from modules.issue_parser.issue_parser import IssueParser
 from modules.exporter_config.exporter_config import ExporterConfig
 
 def main():
+    """
+    Main entry point for the Tiny Jira Exporter application.
+
+    Handles command-line argument parsing, configuration validation, logging setup,
+    and orchestrates the complete Jira export workflow. Validates input parameters,
+    establishes file permissions, configures logging levels, loads YAML configuration,
+    prompts for missing credentials, and executes the issue parsing and CSV export process.
+
+    The function performs comprehensive error handling and validation:
+    - Validates configuration file existence and readability
+    - Checks output directory permissions and writability
+    - Sets up appropriate logging levels and file handlers
+    - Handles missing Jira connection credentials interactively
+    - Manages all exceptions with proper error reporting and cleanup
+
+    Command Line Arguments:
+        -c, --config: Path to YAML configuration file (required)
+        -o, --output: Path to output CSV file (required)
+        -l, --loglevel: Logging verbosity level (debug, info, warning, error, critical, off)
+
+    Raises:
+        SystemExit: On invalid arguments, missing files, or permission errors.
+        Exception: Re-raises any unexpected errors after logging for debugging.
+    """
     # Create the parser for handing over arguments
     parser = argparse.ArgumentParser(description = "This script fetches Jira issues with their timestamps given a defined workflow.")
     parser.add_argument("-c", "--config", type = str, dest ="config", help = "The configuration input file name. Type must be YAML.")
