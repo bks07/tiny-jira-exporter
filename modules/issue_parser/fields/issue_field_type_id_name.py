@@ -4,13 +4,13 @@ class IssueFieldTypeIdName(IssueFieldType):
     """
     Represents a short text issue field, escaping semicolons for semicolon-delimited CSV.
     """
-
-
+    VALUE_ID_KEY = "id"
+    VALUE_NAME_KEY = "name"
 
     @property
     def data(
         self
-    ) -> str:
+    ) -> dict:
         return self._data
 
     @data.setter
@@ -18,27 +18,19 @@ class IssueFieldTypeIdName(IssueFieldType):
         self,
         value: dict
     ) -> None:
-        if value is None or \
-            not isinstance(value, dict) or \
-            "name" not in value or \
-            "id" not in value:
-            self._data = ""
-            raise ValueError("IdName field must be a dict with 'id' and 'name' keys.")
+        if value is None:
+            self._data = {}
+            self._value_id = ""
+            self._value = ""
+        elif not isinstance(value, dict) or \
+            self.VALUE_ID_KEY not in value or \
+            self.VALUE_NAME_KEY not in value:
+            raise ValueError(f"IdName field must be a dict with '{self.VALUE_ID_KEY}' and '{self.VALUE_NAME_KEY}' keys.")
         else:
             self._data = value
+            self._value_id = IssueFieldType.string_to_utf8(self._data.get(self.VALUE_ID_KEY, ""))
+            self._value = IssueFieldType.string_to_utf8(self._data.get(self.VALUE_NAME_KEY, ""))
 
-    @property
-    def value(
-        self
-    ) -> str:
-        return IssueFieldType.string_to_utf8(self._data.get("name", ""))
-    
-    @property
-    def value_id(
-        self
-    ) -> str:
-        return IssueFieldType.string_to_utf8(self._data.get("id", ""))
-    
     @property
     def has_value_id(
         self

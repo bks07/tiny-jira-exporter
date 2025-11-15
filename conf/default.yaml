@@ -35,12 +35,6 @@ Search Criteria:
 Mandatory:
     Parent Link Field ID: customfield_10018 # Make sure that this is the correct id for the custom field 'Parent Link'
     Flagged Field ID: customfield_10021 # Make sure that this is the correct id for the custom field 'Flagged'
-    Decimal Separator: Comma # Choose between 'Comma' and 'Point'
-    # Choose whether to export the IDs of fields values in addition to their values.
-    # This can be useful for, e.g. select list fields like Priority or Resolution, where the value might change but the ID remains the same.
-    # The IDs will be exported in additional columns with the postfix defined below.
-    # Note: This applies to standard fields custom fields, as far as a value id is available.
-    Export Value IDs: !!bool Yes
 
 # Define which standard fields should the export contain
 Standard Issue Fields:
@@ -82,8 +76,15 @@ Workflow:
 
 # Additional settings that are optional
 Misc:
+    CSV Separator: Comma # Choose between 'Comma' and 'Semicolon', default is Comma
     Standard Field Prefix: "std::" # Recommended to avoid confusion with other fields
     Custom Field Prefix: "cst::" # Recommended to avoid confusion with other fields
+    # Choose whether to export the IDs of fields values in addition to their values. Default is No.
+    # This can be useful for, e.g. select list fields like Priority or Resolution, where the value might change but the ID remains the same.
+    # The IDs will be exported in additional columns with the postfix defined below.
+    # Note: This applies to standard fields custom fields, as far as a value id is available.
+    Export Value IDs: !!bool No 
     Issue Field ID Postfix: "::id" # Postfix to append to field IDs when exporting them, e.g. "std::Priority::id"
     Status Category Prefix: "cat::" # Recommended to avoid confusion whith other fields
-    Time Zone: Europe/Berlin # Set a time zone accoring to pytz.all_timezones, e.g. Europe/Berlin, US/Pacific, Asia/Tokyo
+    Time Zone: Europe/Berlin # Set a time zone accoring to pytz.all_timezones, e.g. Europe/Berlin, US/Pacific, Asia/Tokyo. Default is UTC.
+    Decimal Separator: Comma # Choose between 'Comma' and 'Point', default is 'Point'

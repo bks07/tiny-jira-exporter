@@ -48,14 +48,15 @@ class ExporterConfig:
     YAML__WORKFLOW = "Workflow"
     YAML__MANDATORY = "Mandatory"
     YAML__MANDATORY__FLAGGED = "Flagged Field ID"
-    YAML__MANDATORY__DECIMAL_SEPARATOR = "Decimal Separator"
-    YAML__MANDATORY__EXPORT_VALUE_IDS = "Export Value IDs"
     YAML__MISC = "Misc"
+    YAML__MISC__CSV_SEPARATOR = "CSV Separator"
     YAML__MISC__STANDARD_FIELD_PREFIX = "Standard Field Prefix"
     YAML__MISC__CUSTOM_FIELD_PREFIX = "Custom Field Prefix"
     YAML__MISC__ISSUE_FIELD_ID_POSTFIX = "Issue Field ID Postfix"
     YAML__MISC__STATUS_CATEGORY_PREFIX = "Status Category Prefix"
     YAML__MISC__TIME_ZONE = "Time Zone"
+    YAML__MISC__DECIMAL_SEPARATOR = "Decimal Separator"
+    YAML__MISC__EXPORT_VALUE_IDS = "Export Value IDs"
 
     # Issue field display names - Always exported
     ISSUE_FIELD_NAME__ISSUE_KEY = "Key"
@@ -110,6 +111,12 @@ class ExporterConfig:
     DECIMAL_SEPARATOR_POINT = "Point"
     DECIMAL_SEPARATOR_COMMA = "Comma"
 
+    # CSV separator constants
+    CSV_SEPARATOR_COMMA = "Comma"
+    CSV_SEPARATOR_SEMICOLON = "Semicolon"
+
+    DEFAULT_TIME_ZONE = "UTC"
+
     def __init__(
         self,
         logger: object,
@@ -149,18 +156,19 @@ class ExporterConfig:
 
         # Mandatory properties
         self.__standard_issue_field_id_flagged: str = ""
-        self.__decimal_separator: str = ExporterConfig.DECIMAL_SEPARATOR_COMMA
-        self.__export_value_ids: bool = False
 
         # Workflow timestamp export
         self.__workflow: dict = {}
 
-        # Other properties
+        # Misc properties
+        self.__csv_separator: str = self.CSV_SEPARATOR_COMMA
         self.__standard_field_prefix: str = ""
         self.__custom_field_prefix: str = ""
         self.__issue_field_id_postfix: str = ""
         self.__status_category_prefix: str = ""
         self.__time_zone: str = ""
+        self.__decimal_separator: str = ExporterConfig.DECIMAL_SEPARATOR_COMMA
+        self.__export_value_ids: bool = False
 
     
     ##################
@@ -370,6 +378,28 @@ class ExporterConfig:
 
 
     @property
+    def csv_separator(self) -> str:
+        """
+        CSV separator character used in exports.
+
+        Returns:
+            Either 'Comma' or 'Semicolon' depending on the configuration.
+        """
+        return self.__csv_separator
+
+    @csv_separator.setter
+    def csv_separator(self, value: str) -> None:
+        """
+        Set the CSV separator character used in exports.
+
+        Args:
+            value: Either 'Comma' or 'Semicolon' to specify the CSV separator.
+        """
+        self.__csv_separator = value
+        self.__log_attribute(ExporterConfig.YAML__MISC, ExporterConfig.YAML__MISC__CSV_SEPARATOR, str(value))
+
+
+    @property
     def export_value_ids(self) -> bool:
         """
         Whether to export value IDs alongside display names.
@@ -387,8 +417,8 @@ class ExporterConfig:
         Args:
             value: True to export value IDs, False otherwise.
         """
-        self.__export_value_ids = value
-        self.__log_attribute(ExporterConfig.YAML__MANDATORY, ExporterConfig.YAML__MANDATORY__EXPORT_VALUE_IDS, str(value))
+        self.__export_value_ids = bool(value)
+        self.__log_attribute(ExporterConfig.YAML__MISC, ExporterConfig.YAML__MISC__EXPORT_VALUE_IDS, str(value))
 
 
     @property
@@ -557,10 +587,10 @@ class ExporterConfig:
         if value == ExporterConfig.DECIMAL_SEPARATOR_POINT or \
            value == ExporterConfig.DECIMAL_SEPARATOR_COMMA:
             self.__decimal_separator = value
-            self.__log_attribute(ExporterConfig.YAML__MANDATORY, ExporterConfig.YAML__MANDATORY__DECIMAL_SEPARATOR, str(value))
+            self.__log_attribute(ExporterConfig.YAML__MISC, ExporterConfig.YAML__MISC__DECIMAL_SEPARATOR, str(value))
         else:
             raise ValueError(
-                f"Invalid decimal separator. Expected '{ExporterConfig.DECIMAL_SEPARATOR_POINT}' or '{ExporterConfig.DECIMAL_SEPARATOR_COMMA}' for attribute '{ExporterConfig.YAML__MANDATORY__DECIMAL_SEPARATOR}' but '{value}' is given."
+                f"Invalid decimal separator. Expected '{ExporterConfig.DECIMAL_SEPARATOR_POINT}' or '{ExporterConfig.DECIMAL_SEPARATOR_COMMA}' for attribute '{ExporterConfig.YAML__MISC__DECIMAL_SEPARATOR}' but '{value}' is given."
             )
 
 
@@ -586,8 +616,8 @@ class ExporterConfig:
         try:
             target_time_zone = pytz.timezone(value)
         except Exception:
-            self.logger.debug(f"Invalid time zone '{value}', falling back to UTC.")
-            target_time_zone = pytz.timezone('UTC')
+            self.logger.debug(f"Invalid time zone '{value}', falling back to {self.DEFAULT_TIME_ZONE}.")
+            target_time_zone = pytz.timezone(self.DEFAULT_TIME_ZONE)
         self.__time_zone = target_time_zone
 
         self.__log_attribute(ExporterConfig.YAML__MISC, ExporterConfig.YAML__MISC__TIME_ZONE, str(value))
@@ -624,9 +654,6 @@ class ExporterConfig:
         with open(file_location, "r") as file:
             # Parse the contents using safe_load()
             data = yaml.safe_load(file)
-        
-        # Check if mandatory attributes are configured
-        section_mandatory_attributes = self.__check_config_section(data, ExporterConfig.YAML__MANDATORY, True)
 
         # Set up the Jira access data, this part of the configuration is optional.
         section_connection = self.__check_config_section(data, ExporterConfig.YAML__CONNECTION, False)
@@ -648,7 +675,6 @@ class ExporterConfig:
 
         # Check all mandatory attributes
         section_mandatory_attributes = self.__check_config_section(data, ExporterConfig.YAML__MANDATORY, is_mandatory=True)
-        self.decimal_separator = self.__check_attribute(section_mandatory_attributes, ExporterConfig.YAML__MANDATORY__DECIMAL_SEPARATOR, is_mandatory=True)
         self.standard_issue_field_id_flagged = self.__check_attribute(section_mandatory_attributes, ExporterConfig.YAML__MANDATORY__FLAGGED, is_mandatory=True)
 
         # Set up all standard fields that should be exported
@@ -664,11 +690,14 @@ class ExporterConfig:
         # Set up all miscellaneous configuration information.
         section_misc = self.__check_config_section(data, ExporterConfig.YAML__MISC, False)
         if section_misc:
-            self.standard_field_prefix = self.__check_attribute(section_misc, ExporterConfig.YAML__MISC__STANDARD_FIELD_PREFIX)
-            self.custom_field_prefix = self.__check_attribute(section_misc, ExporterConfig.YAML__MISC__CUSTOM_FIELD_PREFIX)
-            self.issue_field_id_postfix = self.__check_attribute(section_misc, ExporterConfig.YAML__MISC__ISSUE_FIELD_ID_POSTFIX)
-            self.status_category_prefix = self.__check_attribute(section_misc, ExporterConfig.YAML__MISC__STATUS_CATEGORY_PREFIX)
-            self.time_zone = self.__check_attribute(section_misc, ExporterConfig.YAML__MISC__TIME_ZONE)
+            self.csv_separator = self.__check_attribute(section_misc, ExporterConfig.YAML__MISC__CSV_SEPARATOR, is_mandatory=False) or ExporterConfig.CSV_SEPARATOR_COMMA
+            self.standard_field_prefix = self.__check_attribute(section_misc, ExporterConfig.YAML__MISC__STANDARD_FIELD_PREFIX, is_mandatory=False) or ""
+            self.custom_field_prefix = self.__check_attribute(section_misc, ExporterConfig.YAML__MISC__CUSTOM_FIELD_PREFIX, is_mandatory=False) or ""
+            self.issue_field_id_postfix = self.__check_attribute(section_misc, ExporterConfig.YAML__MISC__ISSUE_FIELD_ID_POSTFIX, is_mandatory=False) or ""
+            self.status_category_prefix = self.__check_attribute(section_misc, ExporterConfig.YAML__MISC__STATUS_CATEGORY_PREFIX, is_mandatory=False) or ""
+            self.time_zone = self.__check_attribute(section_misc, ExporterConfig.YAML__MISC__TIME_ZONE, is_mandatory=False) or self.DEFAULT_TIME_ZONE
+            self.export_value_ids = self.__check_attribute(section_misc, ExporterConfig.YAML__MISC__EXPORT_VALUE_IDS, is_mandatory=False) or False
+            self.decimal_separator = self.__check_attribute(section_misc, ExporterConfig.YAML__MISC__DECIMAL_SEPARATOR, is_mandatory=False) or ExporterConfig.DECIMAL_SEPARATOR_POINT
 
         # Set up all workflow-related information.
         self.__workflow = self.__check_config_section(data, ExporterConfig.YAML__WORKFLOW, False)
@@ -731,19 +760,24 @@ class ExporterConfig:
         if attribute in section and not is_list:
             if isinstance(section[attribute], str) and len(section[attribute]) > 0:
                 return_value = section[attribute]
+            elif isinstance(section[attribute], bool):
+                return_value = section[attribute]
             else:
-                return_value = ""
+                if is_mandatory:
+                    raise ValueError(f"Mandatory attribute '{attribute}' is missing or empty in section '{section}' of YAML config file.")
+                else:
+                    return_value = ""
 
         if attribute in section and is_list:
             if isinstance(section[attribute], list):
                 if len(section[attribute]) > 0:
                     return_value = section[attribute]
                 elif not is_mandatory:
+                    raise ValueError(f"Mandatory list attribute '{attribute}' is empty in section '{section}' of YAML config file.")
+                else:
                     return_value = []
-
-        if is_mandatory and not return_value:
-            raise ValueError(f"Mandatory attribute '{attribute}' is missing in section '{section}' of YAML config file.")
-
+        if attribute == ExporterConfig.YAML__MISC__EXPORT_VALUE_IDS:
+            print(return_value)
         return return_value
 
 

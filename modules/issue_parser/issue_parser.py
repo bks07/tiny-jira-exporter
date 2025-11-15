@@ -207,9 +207,14 @@ class IssueParser:
 
         self.__pretty_print(f"Write CSV output file to '{file_location}'.")
         
+        if self.config.csv_separator == ExporterConfig.CSV_SEPARATOR_COMMA:
+            csv_separator = ","
+        else:
+            csv_separator = ";"
+
         try:
             df = pd.DataFrame.from_dict(parsed_issues)
-            df.to_csv(file_location, index=False, sep=";", encoding="utf-8")
+            df.to_csv(file_location, index=False, sep=csv_separator, encoding="utf-8")
             
             self.__pretty_print(" ... done.")
             
@@ -385,8 +390,11 @@ class IssueParser:
             fetch_only,
             self.logger
         )
-        self.logger.debug(f"Done. Adding field to fetch list with field type class: {issue_field_type.__class__.__name__}.")
-        self.fields_to_fetch[field_id] = issue_field_type
+        if issue_field_type is None:
+            self.logger.debug(f"Skipping field '{field_name}' (ID: {field_id}) due to unknown schema type '{schema_type}'.")
+        else:
+            self.fields_to_fetch[field_id] = issue_field_type
+            self.logger.debug(f"Added field to fetch list with field type class: {issue_field_type.__class__.__name__}. {'' if fetch_only else 'Included in export.'}")
         
 
     def __fetch_issues(self, jira) -> list:
@@ -485,7 +493,7 @@ class IssueParser:
                     parsed_issue_fields[column_name] = field.value
 
                     if self.config.export_value_ids and field.has_value_id:
-                        parsed_issue_fields[column_name + self.config.value_id_suffix] = field.value_id
+                        parsed_issue_fields[column_name + self.config.issue_field_id_postfix] = field.value_id
                 
                 # Store the created date for workflow analysis later on
                 if field_id_created == id and self.config.has_workflow:

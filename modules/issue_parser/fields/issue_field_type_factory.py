@@ -11,9 +11,6 @@ from .issue_field_type_user import IssueFieldTypeUser
 from .issue_field_type_array import IssueFieldTypeArray
 from .issue_field_type_number import IssueFieldTypeNumber
 
-# A dictionary to map API-returned type strings to your Python classes
-
-
 class IssueFieldTypeFactory:
     """
     Factory class for creating appropriate IssueFieldType instances based on Jira field schemas.
@@ -60,18 +57,18 @@ class IssueFieldTypeFactory:
         # A reference to a Jira user (e.g., Reporter, Assignee, User Picker custom fields).
         # A JSON object with user details ({"accountId": "...", "displayName": "..."})
         "user": IssueFieldTypeUser,
-        # A reference to a Jira Project.
-        # A JSON object with project details ({"id": "...", "key": "..."})
-        #"project": IssueFieldTypeProject,
         # A reference to the issue's resolution.
         # A JSON object with resolution details ({"id": "...", "name": "..."})
         "resolution": IssueFieldTypeIdName,
         "status": IssueFieldTypeIdName,
         "priority": IssueFieldTypeIdName,
         "issuetype": IssueFieldTypeIdName
-        # The combined time tracking fields (Original Estimate, Remaining Estimate).
-        # A JSON object with seconds ({"originalEstimateSeconds": 7200})	
-        #"timetracking": IssueFieldTypeTimeTracking
+        # INFO: Not implemented so far
+        # group	An Atlassian group reference.	(Not a common default field)	Group Picker
+        # issuelink	A reference to an issue link object.	issuelinks	Issue Link Field
+        # attachment	A list of file attachments.	attachment	Attachment Field
+        # comment	A list of comments.	comment	Comment Field
+        # any	Used for fields that can hold various types of data or are highly customized (less common).
     }
 
     @staticmethod
@@ -114,19 +111,19 @@ class IssueFieldTypeFactory:
         # 1. Look up the corresponding Python class from the map
         if schema_type in IssueFieldTypeFactory.FIELD_TYPE_MAPPING:
             field_class = IssueFieldTypeFactory.FIELD_TYPE_MAPPING[schema_type]
+            try:
+            # Create instance with initial name/id
+              return field_class(name, id, fetch_only)
+            except Exception as e:
+                # Handle instantiation or validation errors (e.g., wrong value type)
+                logger.error(f"Error instantiating field {name} ({field_class.__name__}): {e}")
+                raise            
         else:
             # Handle unknown or unmapped fields (e.g., an app field you don't care about)
-            logger.warning(f"Unknown scheme type '{schema_type}'. Falling back to short text field type.")
+            logger.warning(f"Unknown scheme type '{schema_type}'. No field type created.")
             # You might define a generic IssueField subclass here for unhandled types
-            return IssueFieldTypeShortText(name, id, fetch_only) # Assuming IssueField is not abstract or has a concrete implementation
+            return None
 
         # 2. Instantiate the correct class and set its value
         # The specific constructor arguments will depend on your subclass design.
-        try:
-            # Create instance with initial name/id
-            return field_class(name, id, fetch_only)
-            
-        except Exception as e:
-            # Handle instantiation or validation errors (e.g., wrong value type)
-            logger.error(f"Error instantiating field {name} ({field_class.__name__}): {e}")
-            raise
+        

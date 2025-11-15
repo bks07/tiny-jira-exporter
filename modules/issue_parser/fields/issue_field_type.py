@@ -61,6 +61,8 @@ class IssueFieldType:
 
         # The actual data storage attribute can be private to hide complexity
         self._data: Any = None
+        self._value: str = ""
+        self._value_id: str = ""
 
     @property
     def id(
@@ -183,41 +185,6 @@ class IssueFieldType:
 
     @property
     @abstractmethod
-    def value(
-        self
-    ) -> Any:
-        """
-        Get the formatted field value for CSV export.
-
-        Abstract property that must be implemented by subclasses to return
-        a human-readable, CSV-compatible representation of the field data.
-        This is typically a string or simple value suitable for export.
-
-        Returns:
-            Formatted field value ready for CSV export.
-        """
-        pass
-
-
-    @property
-    @abstractmethod
-    def value_id(
-        self
-    ) -> Any:
-        """
-        Get the internal ID representation of the field value.
-
-        Abstract property that must be implemented by subclasses to return
-        the internal identifier for fields that have both display names
-        and internal IDs (e.g., status ID vs status name, user ID vs display name).
-
-        Returns:
-            Internal ID value for the field, or None if not applicable.
-        """
-        pass
-
-    @property
-    @abstractmethod
     def has_value_id(
         self
     ) -> bool:
@@ -232,6 +199,40 @@ class IssueFieldType:
             True if field has internal ID values, False otherwise.
         """
         pass
+
+    @property
+    def value_id(
+        self
+    ) -> Any:
+        """
+        Get the internal ID representation of the field value.
+
+        Abstract property that must be implemented by subclasses to return
+        the internal identifier for fields that have both display names
+        and internal IDs (e.g., status ID vs status name, user ID vs display name).
+
+        Returns:
+            Internal ID value for the field, or None if not applicable.
+        """
+        return self._value_id
+
+
+    @property
+    def value(
+        self
+    ) -> Any:
+        """
+        Get the formatted field value for CSV export.
+
+        Abstract property that must be implemented by subclasses to return
+        a human-readable, CSV-compatible representation of the field data.
+        This is typically a string or simple value suitable for export.
+
+        Returns:
+            Formatted field value ready for CSV export.
+        """
+        return self._value
+
 
     @staticmethod
     def check_custom_field_id(
