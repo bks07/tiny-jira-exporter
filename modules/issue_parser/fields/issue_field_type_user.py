@@ -29,15 +29,17 @@ class IssueFieldTypeUser(IssueFieldType):
     @property
     def data(
         self
-    ) -> str:
+    ) -> dict:
         """
         Get the raw user data from Jira API.
 
         Returns the stored user object containing accountId and displayName
-        properties as received from the Jira API response.
+        properties as received from the Jira API response. This provides access
+        to the complete user data structure for debugging or advanced processing.
 
         Returns:
-            Dictionary with user data, or empty dict if no user assigned.
+            Dictionary containing user data with 'accountId' and 'displayName' keys,
+            or empty dictionary if no user is assigned to this field.
         """
         return self._data
 
@@ -68,7 +70,10 @@ class IssueFieldTypeUser(IssueFieldType):
         elif not isinstance(value, dict) or \
             self.VALUE_ID_KEY not in value or \
             self.VALUE_NAME_KEY not in value:
-            self._data = ""
+            # Reset to safe defaults before raising exception
+            self._data = {}
+            self._value_id = ""
+            self._value = ""
             raise ValueError(f"User field must be a dict with '{self.VALUE_ID_KEY}' and '{self.VALUE_NAME_KEY}' keys.")
         else:
             self._data = value
@@ -80,13 +85,19 @@ class IssueFieldTypeUser(IssueFieldType):
         self
     ) -> bool:
         """
-        Check if this field type supports internal ID values.
+        Check if this user field type supports internal ID values.
 
-        User fields always have both display names and internal account IDs,
-        so this property always returns True to indicate that value_id
-        property contains meaningful data.
+        User fields always contain structured data with both the user's display
+        name (for human readability) and account ID (for system operations and
+        API references). This dual representation enables exports to include
+        either or both values depending on reporting requirements.
+
+        The account ID is particularly important for system integrations, user
+        tracking across name changes, and maintaining referential integrity
+        when users update their display names.
 
         Returns:
-            Always True for user fields (accountId is always available).
+            Always True for user fields, indicating that both value (display name)
+            and value_id (account ID) properties are available and meaningful.
         """
         return True

@@ -4,6 +4,7 @@ from atlassian import Jira
 import pandas as pd
 
 from modules.exporter_config.exporter_config import ExporterConfig
+from modules.issue_parser.fields.issue_field_type_datetime import IssueFieldTypeDatetime
 from modules.issue_parser.workflow import Workflow
 from modules.issue_parser.progress_bar import ProgressBar
 from .fields.issue_field_type import IssueFieldType
@@ -45,15 +46,22 @@ class IssueParser:
         >>> issues = parser.fetch_and_parse_issues()
         >>> parser.export_to_csv(issues, "output.csv")
     """
-    DATE_PATTERN_FULL = "%Y-%m-%dT%H:%M:%S.%f%z"
-    DATE_PATTERN_DATE_ONLY = "%Y-%m-%d"
-
     def __init__(
         self,
         logger: object,
         config: ExporterConfig,
         pretty_print: bool = False
     ):
+        """
+        Initialize a new IssueParser instance.
+
+        Args:
+            logger: Logger instance for debug and informational messages.
+            config: ExporterConfig instance containing all configuration values loaded
+                   from the YAML configuration file.
+            pretty_print: When True, displays user-friendly progress messages during
+                         processing operations.
+        """
         # Read-only properties
         self.__logger: object = logger
         self.__config: ExporterConfig = config
@@ -155,8 +163,14 @@ class IssueParser:
         self.__pretty_print("Prepare fields to fetch from Jira...")
         self.logger.info("Prepare fields to fetch from Jira.")
         schema_type_map = self.__fetch_field_types(jira)
-        self.__prepare_standard_fields_to_fetch(schema_type_map)
-        self.__prepare_custom_fields_to_fetch(schema_type_map)
+        issue_type_factory = IssueFieldTypeFactory()
+        issue_type_factory.time_zone = self.config.time_zone
+        issue_type_factory.date_format = self.config.date_format
+        issue_type_factory.datetime_option = self.config.datetime_option
+        issue_type_factory.datetime_format = self.config.datetime_format
+        issue_type_factory.decimal_separator = self.config.decimal_separator
+        self.__prepare_standard_fields_to_fetch(issue_type_factory, schema_type_map)
+        self.__prepare_custom_fields_to_fetch(issue_type_factory, schema_type_map)
         self.__pretty_print("... done.")
         self.logger.info("All fields are prepared to fetch.")
 
@@ -168,7 +182,15 @@ class IssueParser:
 
         self.__pretty_print("Parse fetched Jira issues...")
         self.logger.info("Starting to parse issues.")
-        parsed_issues = self.__parse_issues(issues, jira)
+        status_change_datetime = issue_type_factory.create_field_type(
+            schema_type="datetime",
+            item_type=None,
+            id="status_change_datetime",
+            name="status_change_datetime",
+            fetch_only=True,
+            logger=self.logger
+        )
+        parsed_issues = self.__parse_issues(issues, jira, status_change_datetime)
         self.__pretty_print("... done.")
         self.logger.info("All fetched issues parsed successfully.")
 
@@ -184,9 +206,9 @@ class IssueParser:
         Export parsed issue data to a CSV file with configurable formatting.
 
         Converts the structured issue data into a pandas DataFrame and writes it
-        to a CSV file using semicolon delimiters and UTF-8 encoding. The output
-        format is suitable for import into spreadsheet applications and data
-        analysis tools.
+        to a CSV file using the configured CSV separator and UTF-8 encoding. The
+        output format is suitable for import into spreadsheet applications and
+        data analysis tools.
 
         Args:
             parsed_issues: List of dictionaries containing parsed issue data as
@@ -199,9 +221,9 @@ class IssueParser:
             PermissionError: If insufficient permissions to create the file.
 
         Note:
-            The CSV uses semicolon (;) separators to handle comma-containing field
-            values correctly. All text is encoded in UTF-8 to support international
-            characters in issue content.
+            The CSV separator is configurable (comma or semicolon) based on the
+            configuration setting. All text is encoded in UTF-8 to support
+            international characters in issue content.
         """
         self.logger.debug("Write CSV file.")
 
@@ -294,14 +316,19 @@ class IssueParser:
         for field in all_fields:
             field_id = field.get('id')
             schema_type = field.get('schema', {}).get('type')
+            item_type = field.get('schema', {}).get('items')
             
             # Only store valid fields that have an ID and a schema type
             if field_id and schema_type:
-                schema_type_map[field_id] = schema_type
+                schema_type_map[field_id] = {"schema_type": schema_type, "item_type": item_type}
         return schema_type_map
 
 
-    def __prepare_standard_fields_to_fetch(self, schema_type_map: dict) -> None:
+    def __prepare_standard_fields_to_fetch(
+        self,
+        issue_type_factory: IssueFieldTypeFactory,
+        schema_type_map: dict
+    ) -> None:
         """
         Prepare standard Jira fields for data fetching based on configuration.
 
@@ -310,12 +337,14 @@ class IssueParser:
         field is always included even if not explicitly configured.
 
         Args:
+            issue_type_factory: Factory instance for creating appropriate field type handlers.
             schema_type_map: Dictionary mapping field IDs to their schema types.
         """
         # Decide for all standard fields
         added_fields = []
         for standard_field_id, standard_field_name in self.config.standard_issue_fields.items():
             self.__prepare_fields_to_fetch(
+                issue_type_factory,
                 schema_type_map,
                 standard_field_id,
                 standard_field_name,
@@ -326,6 +355,7 @@ class IssueParser:
             # Make sure that the status field is always fetched when workflow analysis is enabled
             if not ExporterConfig.ISSUE_FIELD_NAME__STATUS in added_fields:
                 self.__prepare_fields_to_fetch(
+                    issue_type_factory,
                     schema_type_map,
                     ExporterConfig.STANDARD_ISSUE_FIELDS[ExporterConfig.ISSUE_FIELD_NAME__STATUS],
                     ExporterConfig.ISSUE_FIELD_NAME__STATUS,
@@ -334,6 +364,7 @@ class IssueParser:
             # Make sure that the created field is always fetched when workflow analysis is enabled
             if not ExporterConfig.ISSUE_FIELD_NAME__CREATED in added_fields:
                 self.__prepare_fields_to_fetch(
+                    issue_type_factory,
                     schema_type_map,
                     ExporterConfig.STANDARD_ISSUE_FIELDS[ExporterConfig.ISSUE_FIELD_NAME__CREATED],
                     ExporterConfig.ISSUE_FIELD_NAME__CREATED,
@@ -341,7 +372,11 @@ class IssueParser:
                 )
         
 
-    def __prepare_custom_fields_to_fetch(self, schema_type_map: dict) -> None:
+    def __prepare_custom_fields_to_fetch(
+        self,
+        issue_type_factory: IssueFieldTypeFactory,
+        schema_type_map: dict
+    ) -> None:
         """
         Prepare custom Jira fields for data fetching based on configuration.
 
@@ -350,10 +385,12 @@ class IssueParser:
         extensions to the standard Jira schema.
 
         Args:
+            issue_type_factory: Factory instance for creating appropriate field type handlers.
             schema_type_map: Dictionary mapping field IDs to their schema types.
         """
         for custom_field_id, custom_field_name in self.config.custom_issue_fields.items():
             self.__prepare_fields_to_fetch(
+                issue_type_factory,
                 schema_type_map,
                 custom_field_id,
                 custom_field_name,
@@ -363,6 +400,7 @@ class IssueParser:
 
     def __prepare_fields_to_fetch(
         self,
+        issue_type_factory: IssueFieldTypeFactory,
         schema_type_map: dict,
         field_id: str,
         field_name: str,
@@ -376,22 +414,25 @@ class IssueParser:
         values are parsed and formatted for export.
 
         Args:
+            issue_type_factory: Factory instance for creating appropriate field type handlers.
             schema_type_map: Dictionary mapping field IDs to their schema types.
             field_id: Jira field identifier (e.g., 'status', 'customfield_10001').
             field_name: Human-readable field name for export headers.
             fetch_only: If True, field is fetched but excluded from export.
         """
-        schema_type = schema_type_map.get(field_id)
-        self.logger.debug(f"Prepare field '{field_name}' (ID: {field_id}) with schema type '{schema_type}'.")
-        issue_field_type:IssueFieldType = IssueFieldTypeFactory.create_field_type(
+        schema_type = schema_type_map.get(field_id).get("schema_type") if schema_type_map.get(field_id) else None
+        item_type = schema_type_map.get(field_id).get("item_type") if schema_type_map.get(field_id) else None
+        self.logger.debug(f"Prepare field '{field_name}' (ID: {field_id}) with schema type '{schema_type}' and item type '{item_type}'.")
+        issue_field_type:IssueFieldType = issue_type_factory.create_field_type(
             schema_type,
-            field_name,
+            item_type,
             field_id,
+            field_name,
             fetch_only,
             self.logger
         )
         if issue_field_type is None:
-            self.logger.debug(f"Skipping field '{field_name}' (ID: {field_id}) due to unknown schema type '{schema_type}'.")
+            self.logger.debug(f"Skipping field '{field_name}' (ID: {field_id}) due to unknown schema type '{schema_type}' and item type '{item_type}'.")
         else:
             self.fields_to_fetch[field_id] = issue_field_type
             self.logger.debug(f"Added field to fetch list with field type class: {issue_field_type.__class__.__name__}. {'' if fetch_only else 'Included in export.'}")
@@ -428,7 +469,12 @@ class IssueParser:
             raise ValueError(f"Jira request failed with JQL: {self.config.jql_query}")
 
 
-    def __parse_issues(self, issues_response: list, jira: Jira) -> list:
+    def __parse_issues(
+        self,
+        issues_response: list,
+        jira: Jira,
+        status_change_datetime_field: IssueFieldTypeDatetime
+    ) -> list:
         """
         Parse raw Jira issue data into structured format for export.
 
@@ -440,6 +486,8 @@ class IssueParser:
         Args:
             issues_response: List of raw issue dictionaries from Jira API.
             jira: Authenticated Jira client for additional data fetching.
+            status_change_datetime_field: IssueFieldTypeDatetime instance for parsing
+                                         status transition timestamps during workflow analysis.
 
         Returns:
             List of parsed issue dictionaries ready for CSV export.
@@ -452,10 +500,9 @@ class IssueParser:
         if self.config.has_workflow:
             workflow = Workflow(
                 self.config.workflow,
-                self.config.time_zone,
-                IssueFieldTypeDate.DATE_PATTERN, # TODO: Should be configurable via ExporterConfig 
-                self.config.status_category_prefix,
-                self.logger)
+                self.logger,
+                status_change_datetime_field,
+                self.config.status_category_prefix)
 
         # Crawl all fetches issues
         for i in range(number_of_issues):
@@ -482,7 +529,6 @@ class IssueParser:
             # Crawl all fields the exporter should fetch
             for id, field in self.fields_to_fetch.items():
                 field.data = raw_issue_data['fields'].get(id)
-
                 # Export the field value to the parsed issue fields dictionary if required
                 if not field.fetch_only:
                     if field.is_custom_field:
@@ -494,7 +540,6 @@ class IssueParser:
 
                     if self.config.export_value_ids and field.has_value_id:
                         parsed_issue_fields[column_name + self.config.issue_field_id_postfix] = field.value_id
-                
                 # Store the created date for workflow analysis later on
                 if field_id_created == id and self.config.has_workflow:
                     issue_created_date = field.value

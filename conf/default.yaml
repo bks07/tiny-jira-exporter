@@ -87,4 +87,7 @@ Misc:
     Issue Field ID Postfix: "::id" # Postfix to append to field IDs when exporting them, e.g. "std::Priority::id"
     Status Category Prefix: "cat::" # Recommended to avoid confusion whith other fields
     Time Zone: Europe/Berlin # Set a time zone accoring to pytz.all_timezones, e.g. Europe/Berlin, US/Pacific, Asia/Tokyo. Default is UTC.
+    Date Format: "%Y-%m-%d" # Choose a date format according to Python's datetime formatting options. Default is "%Y-%m-%d".
+    DateTime Option: Date # Choose between 'Date', 'Seconds' and 'Milliseconds', default is 'Date'.
+    DateTime Format: "%Y-%m-%d %H:%M:%S" # Choose a datetime format according to Python's datetime formatting options. Default is "%Y-%m-%d %H:%M:%S".
     Decimal Separator: Comma # Choose between 'Comma' and 'Point', default is 'Point'

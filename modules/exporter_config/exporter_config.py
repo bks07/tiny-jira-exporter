@@ -7,6 +7,8 @@ import re
 from typing import Any
 
 from modules.issue_parser.fields.issue_field_type import IssueFieldType
+from modules.issue_parser.fields.issue_field_type_date import IssueFieldTypeDate
+from modules.issue_parser.fields.issue_field_type_datetime import IssueFieldTypeDatetime
 
 class ExporterConfig:
     """
@@ -55,6 +57,9 @@ class ExporterConfig:
     YAML__MISC__ISSUE_FIELD_ID_POSTFIX = "Issue Field ID Postfix"
     YAML__MISC__STATUS_CATEGORY_PREFIX = "Status Category Prefix"
     YAML__MISC__TIME_ZONE = "Time Zone"
+    YAML__MISC__DATE_FORMAT = "Date Format"
+    YAML__MISC__DATETIME_OPTION = "DateTime Option"
+    YAML__MISC__DATETIME_FORMAT = "DateTime Format"
     YAML__MISC__DECIMAL_SEPARATOR = "Decimal Separator"
     YAML__MISC__EXPORT_VALUE_IDS = "Export Value IDs"
 
@@ -107,16 +112,25 @@ class ExporterConfig:
         ISSUE_FIELD_NAME__FIXED_VERSIONS: "fixVersions"
     }
 
-    # Decimal separator constants
     DECIMAL_SEPARATOR_POINT = "Point"
     DECIMAL_SEPARATOR_COMMA = "Comma"
+    DECIMAL_SEPARATORS = [DECIMAL_SEPARATOR_POINT, DECIMAL_SEPARATOR_COMMA]
+    DEFAULT_DECIMAL_SEPARATOR = DECIMAL_SEPARATOR_POINT
 
-    # CSV separator constants
     CSV_SEPARATOR_COMMA = "Comma"
     CSV_SEPARATOR_SEMICOLON = "Semicolon"
+    CSV_SEPARATORS = [CSV_SEPARATOR_COMMA, CSV_SEPARATOR_SEMICOLON]
+    DEFAULT_CSV_SEPARATOR = CSV_SEPARATOR_COMMA
 
-    DEFAULT_TIME_ZONE = "UTC"
+    DEFAULT_DATE_FORMAT = "%Y-%m-%d"
+    DEFAULT_DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
+    DATETIME_OPTION_DATE = "Date"
+    DATETIME_OPTION_SECONDS = "Seconds"
+    DATETIME_OPTION_MILLISECONDS = "Milliseconds"
+    DATETIME_OPTIONS = [DATETIME_OPTION_DATE, DATETIME_OPTION_SECONDS, DATETIME_OPTION_MILLISECONDS]
+    DEFAULT_DATETIME_OPTION = DATETIME_OPTION_DATE
+    
     def __init__(
         self,
         logger: object,
@@ -127,7 +141,7 @@ class ExporterConfig:
 
         The constructor only sets up internal state and accepts a logger and an
         optional pretty-print flag. Actual configuration values are populated by
-        calling :meth:`load_yaml_file` with the path to a YAML configuration.
+        calling `load_yaml_file()` with the path to a YAML configuration.
 
         Args:
             logger: Logger instance used for debug/info messages.
@@ -167,13 +181,17 @@ class ExporterConfig:
         self.__issue_field_id_postfix: str = ""
         self.__status_category_prefix: str = ""
         self.__time_zone: str = ""
-        self.__decimal_separator: str = ExporterConfig.DECIMAL_SEPARATOR_COMMA
+        self.__date_format: str = IssueFieldTypeDate.DEFAULT_DATE_FORMAT
+        self.__datetime_option: str = ExporterConfig.DEFAULT_DATETIME_OPTION
+        self.__datetime_format: str = IssueFieldTypeDatetime.DEFAULT_DATETIME_FORMAT
+        self.__decimal_separator: str = ExporterConfig.DEFAULT_DECIMAL_SEPARATOR
         self.__export_value_ids: bool = False
 
     
-    ##################
-    ### PROPERTIES ###
-    ##################
+    ############################
+    ### PROPERTIES - GENERAL ###
+    ############################
+
 
     @property
     def logger(self) -> object:
@@ -186,7 +204,30 @@ class ExporterConfig:
         return self.__logger
 
 
-    # Properties for Jira connection
+    @property
+    def shall_pretty_print(self) -> bool:
+        """
+        Whether to print human-readable progress messages during config loading.
+
+        Returns:
+            True if pretty-printing is enabled, False otherwise.
+        """
+        return self.__shall_pretty_print
+    
+    @shall_pretty_print.setter
+    def shall_pretty_print(self, value: bool) -> None:
+        """
+        Set whether to print human-readable progress messages during config loading.
+
+        Args:
+            value: True to enable pretty-printing, False to disable it.
+        """
+        self.__shall_pretty_print = value
+
+
+    ####################################
+    ### PROPERTIES - JIRA CONNECTION ###
+    ####################################
 
     @property
     def domain(self) -> str:
@@ -216,50 +257,6 @@ class ExporterConfig:
         else:
             raise ValueError(f"The given domain '{value}' does not fit the pattern 'https://[YOUR-NAME].atlassian.net'. Please check the YAML configuration file.")
         self.__log_attribute(ExporterConfig.YAML__CONNECTION, ExporterConfig.YAML__CONNECTION__DOMAIN, value)
-
-
-    @property
-    def is_cloud(self) -> bool:
-        """
-        Jira deployment type indicator.
-
-        Returns:
-            True if connecting to Jira Cloud (Atlassian-hosted), False for 
-            Jira Server or Data Center (self-hosted) instances.
-        """
-        return self.__is_cloud
-    
-    @is_cloud.setter
-    def is_cloud(self, value: bool) -> None:
-        """
-        Set the Jira deployment type.
-
-        Args:
-            value: True for Jira Cloud instances, False for Server/Data Center.
-        """
-        self.__is_cloud = value
-        self.__log_attribute(ExporterConfig.YAML__CONNECTION, ExporterConfig.YAML__CONNECTION__CLOUD, value)
-
-
-    @property
-    def shall_pretty_print(self) -> bool:
-        """
-        Whether to print human-readable progress messages during config loading.
-
-        Returns:
-            True if pretty-printing is enabled, False otherwise.
-        """
-        return self.__shall_pretty_print
-    
-    @shall_pretty_print.setter
-    def shall_pretty_print(self, value: bool) -> None:
-        """
-        Set whether to print human-readable progress messages during config loading.
-
-        Args:
-            value: True to enable pretty-printing, False to disable it.
-        """
-        self.__shall_pretty_print = value
 
 
     @property
@@ -308,6 +305,34 @@ class ExporterConfig:
 
 
     @property
+    def is_cloud(self) -> bool:
+        """
+        Jira deployment type indicator.
+
+        Returns:
+            True if connecting to Jira Cloud (Atlassian-hosted), False for 
+            Jira Server or Data Center (self-hosted) instances.
+        """
+        return self.__is_cloud
+    
+    @is_cloud.setter
+    def is_cloud(self, value: bool) -> None:
+        """
+        Set the Jira deployment type.
+
+        Args:
+            value: True for Jira Cloud instances, False for Server/Data Center.
+        """
+        self.__is_cloud = value
+        self.__log_attribute(ExporterConfig.YAML__CONNECTION, ExporterConfig.YAML__CONNECTION__CLOUD, value)
+
+
+    ##################################
+    ###  PROPERTIES - JQL REQUEST  ###    
+    ##################################
+
+
+    @property
     def jql_query(self) -> str:
         """
         Complete JQL query used to fetch issues from Jira.
@@ -328,6 +353,11 @@ class ExporterConfig:
         """
         self.__jql_query = value
         self.logger.debug(f"JQL query generated: {value}")
+
+
+    #################################
+    ### PROPERTIES - ISSUE FIELDS ###
+    #################################
 
 
     @property
@@ -376,6 +406,40 @@ class ExporterConfig:
         self.__standard_issue_field_id_flagged = value
         self.__log_attribute(ExporterConfig.YAML__MANDATORY, ExporterConfig.YAML__MANDATORY__FLAGGED, str(value))
 
+
+    ########################################
+    ### PROPERTIES - WORKFLOW DEFINITION ###
+    ########################################
+
+
+    @property
+    def workflow(self) -> dict:
+        """
+        Raw workflow configuration dictionary from YAML.
+
+        Returns:
+            Dictionary containing the workflow configuration mapping category 
+            names to lists of status names, or empty dict if no workflow 
+            is configured.
+        """
+        return self.__workflow
+
+
+    @property
+    def has_workflow(self) -> bool:
+        """
+        Whether a valid workflow configuration exists.
+
+        Returns:
+            True if a workflow is configured and contains at least one status,
+            False otherwise.
+        """
+        return len(self.workflow) > 0
+
+
+    ##################################
+    ### PROPERTIES - MISC SETTINGS ###
+    ##################################
 
     @property
     def csv_separator(self) -> str:
@@ -515,31 +579,6 @@ class ExporterConfig:
 
 
     @property
-    def workflow(self) -> dict:
-        """
-        Raw workflow configuration dictionary from YAML.
-
-        Returns:
-            Dictionary containing the workflow configuration mapping category 
-            names to lists of status names, or empty dict if no workflow 
-            is configured.
-        """
-        return self.__workflow
-
-
-    @property
-    def has_workflow(self) -> bool:
-        """
-        Whether a valid workflow configuration exists.
-
-        Returns:
-            True if a workflow is configured and contains at least one status,
-            False otherwise.
-        """
-        return len(self.workflow) > 0
-
-
-    @property
     def status_category_prefix(self) -> str:
         """
         Prefix applied to status category field names in exports.
@@ -616,11 +655,102 @@ class ExporterConfig:
         try:
             target_time_zone = pytz.timezone(value)
         except Exception:
-            self.logger.debug(f"Invalid time zone '{value}', falling back to {self.DEFAULT_TIME_ZONE}.")
-            target_time_zone = pytz.timezone(self.DEFAULT_TIME_ZONE)
+            self.logger.debug(f"Invalid time zone '{value}', falling back to {IssueFieldTypeDatetime.DEFAULT_TIME_ZONE}.")
+            target_time_zone = pytz.timezone(IssueFieldTypeDatetime.DEFAULT_TIME_ZONE)
         self.__time_zone = target_time_zone
 
         self.__log_attribute(ExporterConfig.YAML__MISC, ExporterConfig.YAML__MISC__TIME_ZONE, str(value))
+
+
+    @property
+    def date_format(self) -> str:
+        """
+        Get the current date output format pattern.
+
+        Returns:
+            The strftime-compatible date format string used for CSV export.
+        """
+        return self.__date_format
+
+    @date_format.setter
+    def date_format(self, value: str) -> None:
+        """
+        Set the date format pattern for exports.
+
+        Args:
+            value: A strftime-compatible date format string.
+
+        Raises:
+            ValueError: If the provided format string is invalid.
+        """
+        try:
+            # Test the format string by formatting the current date
+            datetime.datetime.now().strftime(value)
+        except Exception as e:
+            raise ValueError(f"Invalid date format string: {value}") from e
+
+        self.__date_format = value
+        self.__log_attribute(ExporterConfig.YAML__MISC, ExporterConfig.YAML__MISC__DATE_FORMAT, str(value)) 
+
+
+    @property
+    def datetime_format(self) -> str:
+        """
+        Get the current datetime output format pattern.
+
+        Returns:
+            The strftime-compatible datetime format string used for CSV export.
+        """
+        return self.__datetime_format
+    
+    @datetime_format.setter
+    def datetime_format(self, value: str) -> None:
+        """
+        Set the datetime format pattern for exports.
+
+        Args:
+            value: A strftime-compatible datetime format string.
+
+        Raises:
+            ValueError: If the provided format string is invalid.
+        """
+        try:
+            # Test the format string by formatting the current datetime
+            datetime.datetime.now().strftime(value)
+        except Exception as e:
+            raise ValueError(f"Invalid datetime format string: {value}") from e
+
+        self.__datetime_format = value
+        self.__log_attribute(ExporterConfig.YAML__MISC, ExporterConfig.YAML__MISC__DATETIME_FORMAT, str(value))
+
+
+    @property
+    def datetime_option(self) -> str:
+        """
+        Get the current datetime option (Date or DateTime).
+
+        Returns:
+            The datetime option string, either 'Date' or 'DateTime'.
+        """
+        return self.__datetime_option
+    
+    @datetime_option.setter
+    def datetime_option(self, value: str) -> None:
+        """
+        Set the datetime option for exports.
+
+        Args:
+            value: Must be either 'Date' or 'DateTime'.
+        Raises:
+            ValueError: If the value is not one of the allowed options.
+        """
+        if value in ExporterConfig.DATETIME_OPTIONS:
+            self.__datetime_option = value
+            self.__log_attribute(ExporterConfig.YAML__MISC, ExporterConfig.YAML__MISC__DATETIME_OPTION, str(value))
+        else:
+            raise ValueError(
+                f"Invalid datetime option. Expected '{ExporterConfig.DATETIME_OPTION_DATE}' or '{ExporterConfig.DATETIME_OPTION_DATETIME}' for attribute '{ExporterConfig.YAML__MISC__DATETIME_OPTION}' but '{value}' is given."
+            )
 
 
     ######################
@@ -633,7 +763,7 @@ class ExporterConfig:
         Load and validate configuration values from a YAML file.
 
         After calling this method the instance properties (for example
-        :attr:`domain`, :attr:`jql_query`, :attr:`standard_issue_fields`) are
+        `domain`, `jql_query`, `standard_issue_fields`) are
         populated and validated. The method performs the following high-level
         steps:
         1. Parse the YAML file into a Python dictionary
@@ -656,53 +786,56 @@ class ExporterConfig:
             data = yaml.safe_load(file)
 
         # Set up the Jira access data, this part of the configuration is optional.
-        section_connection = self.__check_config_section(data, ExporterConfig.YAML__CONNECTION, False)
+        section_connection = self.__get_section(data, ExporterConfig.YAML__CONNECTION, False)
         if section_connection:
-            self.domain = self.__check_attribute(section_connection, ExporterConfig.YAML__CONNECTION__DOMAIN, is_mandatory=False)
-            self.username = self.__check_attribute(section_connection, ExporterConfig.YAML__CONNECTION__USERNAME, is_mandatory=False)
-            self.api_token = self.__check_attribute(section_connection, ExporterConfig.YAML__CONNECTION__API_TOKEN, is_mandatory=False)
-            self.is_cloud = self.__check_attribute(section_connection, ExporterConfig.YAML__CONNECTION__CLOUD, is_mandatory=False) or True # Currently default to True - Jira Cloud only
+            self.domain = self.__get_attribute(section_connection, ExporterConfig.YAML__CONNECTION__DOMAIN, is_mandatory=False)
+            self.username = self.__get_attribute(section_connection, ExporterConfig.YAML__CONNECTION__USERNAME, is_mandatory=False)
+            self.api_token = self.__get_attribute(section_connection, ExporterConfig.YAML__CONNECTION__API_TOKEN, is_mandatory=False)
+            self.is_cloud = self.__get_attribute(section_connection, ExporterConfig.YAML__CONNECTION__CLOUD, is_mandatory=False) or True # Currently default to True - Jira Cloud only
 
         # Set up the JQL query to retrieve the right issues from Jira.
-        section_search_criteria = self.__check_config_section(data, ExporterConfig.YAML__SEARCH_CRITERIA, True)
+        section_search_criteria = self.__get_section(data, ExporterConfig.YAML__SEARCH_CRITERIA, True)
         self.jql_query = self.__generate_jql_query(
-            filter=self.__check_attribute(section_search_criteria, ExporterConfig.YAML__SEARCH_CRITERIA__FILTER, is_mandatory=False),
-            project_keys=self.__check_attribute(section_search_criteria, ExporterConfig.YAML__SEARCH_CRITERIA__PROJECTS, is_list=True, is_mandatory=True),
-            issue_types=self.__check_attribute(section_search_criteria, ExporterConfig.YAML__SEARCH_CRITERIA__ISSUE_TYPES, is_list=True, is_mandatory=False),
-            exclude_created_date=self.__check_attribute(section_search_criteria, ExporterConfig.YAML__SEARCH_CRITERIA__EXCLUDE_CREATED_DATE, is_mandatory=False),
-            exclude_resolved_date=self.__check_attribute(section_search_criteria, ExporterConfig.YAML__SEARCH_CRITERIA__EXCLUDE_RESOLVED_DATE, is_mandatory=False)
+            filter=self.__get_attribute(section_search_criteria, ExporterConfig.YAML__SEARCH_CRITERIA__FILTER, is_mandatory=False),
+            project_keys=self.__get_attribute(section_search_criteria, ExporterConfig.YAML__SEARCH_CRITERIA__PROJECTS, is_list=True, is_mandatory=True),
+            issue_types=self.__get_attribute(section_search_criteria, ExporterConfig.YAML__SEARCH_CRITERIA__ISSUE_TYPES, is_list=True, is_mandatory=False),
+            exclude_created_date=self.__get_attribute(section_search_criteria, ExporterConfig.YAML__SEARCH_CRITERIA__EXCLUDE_CREATED_DATE, is_mandatory=False),
+            exclude_resolved_date=self.__get_attribute(section_search_criteria, ExporterConfig.YAML__SEARCH_CRITERIA__EXCLUDE_RESOLVED_DATE, is_mandatory=False)
         )
 
         # Check all mandatory attributes
-        section_mandatory_attributes = self.__check_config_section(data, ExporterConfig.YAML__MANDATORY, is_mandatory=True)
-        self.standard_issue_field_id_flagged = self.__check_attribute(section_mandatory_attributes, ExporterConfig.YAML__MANDATORY__FLAGGED, is_mandatory=True)
+        section_mandatory_attributes = self.__get_section(data, ExporterConfig.YAML__MANDATORY, is_mandatory=True)
+        self.standard_issue_field_id_flagged = self.__get_attribute(section_mandatory_attributes, ExporterConfig.YAML__MANDATORY__FLAGGED, is_mandatory=True)
 
         # Set up all standard fields that should be exported
-        section_standard_fields = self.__check_config_section(data, ExporterConfig.YAML__STANDARD_FIELDS, False)
+        section_standard_fields = self.__get_section(data, ExporterConfig.YAML__STANDARD_FIELDS, False)
         if section_standard_fields:
             self.standard_issue_fields = self.__collect_standard_issue_fields(section_standard_fields)
 
         # Set up all defined custom fields that should be exported
-        section_custom_fields = self.__check_config_section(data, ExporterConfig.YAML__CUSTOM_FIELDS, False)
+        section_custom_fields = self.__get_section(data, ExporterConfig.YAML__CUSTOM_FIELDS, False)
         if section_custom_fields:
             self.custom_issue_fields = self.__collect_custom_issue_fields(section_custom_fields)
 
         # Set up all miscellaneous configuration information.
-        section_misc = self.__check_config_section(data, ExporterConfig.YAML__MISC, False)
+        section_misc = self.__get_section(data, ExporterConfig.YAML__MISC, False)
         if section_misc:
-            self.csv_separator = self.__check_attribute(section_misc, ExporterConfig.YAML__MISC__CSV_SEPARATOR, is_mandatory=False) or ExporterConfig.CSV_SEPARATOR_COMMA
-            self.standard_field_prefix = self.__check_attribute(section_misc, ExporterConfig.YAML__MISC__STANDARD_FIELD_PREFIX, is_mandatory=False) or ""
-            self.custom_field_prefix = self.__check_attribute(section_misc, ExporterConfig.YAML__MISC__CUSTOM_FIELD_PREFIX, is_mandatory=False) or ""
-            self.issue_field_id_postfix = self.__check_attribute(section_misc, ExporterConfig.YAML__MISC__ISSUE_FIELD_ID_POSTFIX, is_mandatory=False) or ""
-            self.status_category_prefix = self.__check_attribute(section_misc, ExporterConfig.YAML__MISC__STATUS_CATEGORY_PREFIX, is_mandatory=False) or ""
-            self.time_zone = self.__check_attribute(section_misc, ExporterConfig.YAML__MISC__TIME_ZONE, is_mandatory=False) or self.DEFAULT_TIME_ZONE
-            self.export_value_ids = self.__check_attribute(section_misc, ExporterConfig.YAML__MISC__EXPORT_VALUE_IDS, is_mandatory=False) or False
-            self.decimal_separator = self.__check_attribute(section_misc, ExporterConfig.YAML__MISC__DECIMAL_SEPARATOR, is_mandatory=False) or ExporterConfig.DECIMAL_SEPARATOR_POINT
+            self.csv_separator = self.__get_attribute(section_misc, ExporterConfig.YAML__MISC__CSV_SEPARATOR, is_mandatory=False) or ExporterConfig.DEFAULT_CSV_SEPARATOR
+            self.standard_field_prefix = self.__get_attribute(section_misc, ExporterConfig.YAML__MISC__STANDARD_FIELD_PREFIX, is_mandatory=False) or ""
+            self.custom_field_prefix = self.__get_attribute(section_misc, ExporterConfig.YAML__MISC__CUSTOM_FIELD_PREFIX, is_mandatory=False) or ""
+            self.issue_field_id_postfix = self.__get_attribute(section_misc, ExporterConfig.YAML__MISC__ISSUE_FIELD_ID_POSTFIX, is_mandatory=False) or ""
+            self.status_category_prefix = self.__get_attribute(section_misc, ExporterConfig.YAML__MISC__STATUS_CATEGORY_PREFIX, is_mandatory=False) or ""
+            self.time_zone = self.__get_attribute(section_misc, ExporterConfig.YAML__MISC__TIME_ZONE, is_mandatory=False) or IssueFieldTypeDatetime.DEFAULT_TIME_ZONE
+            self.date_format = self.__get_attribute(section_misc, ExporterConfig.YAML__MISC__DATE_FORMAT, is_mandatory=False) or IssueFieldTypeDate.DEFAULT_DATE_FORMAT
+            self.datetime_option = self.__get_attribute(section_misc, ExporterConfig.YAML__MISC__DATETIME_OPTION, is_mandatory=False) or ExporterConfig.DEFAULT_DATETIME_OPTION
+            self.datetime_format = self.__get_attribute(section_misc, ExporterConfig.YAML__MISC__DATETIME_FORMAT, is_mandatory=False) or IssueFieldTypeDatetime.DEFAULT_DATETIME_FORMAT
+            self.export_value_ids = self.__get_attribute(section_misc, ExporterConfig.YAML__MISC__EXPORT_VALUE_IDS, is_mandatory=False) or False
+            self.decimal_separator = self.__get_attribute(section_misc, ExporterConfig.YAML__MISC__DECIMAL_SEPARATOR, is_mandatory=False) or ExporterConfig.DEFAULT_DECIMAL_SEPARATOR
 
         # Set up all workflow-related information.
-        self.__workflow = self.__check_config_section(data, ExporterConfig.YAML__WORKFLOW, False)
+        self.__workflow = self.__get_section(data, ExporterConfig.YAML__WORKFLOW, False)
 
-        self.__pretty_print(" ... done.")
+        self.__pretty_print("... done.")
 
         self.logger.debug("YAML configuration file successfully loaded.")
 
@@ -712,7 +845,7 @@ class ExporterConfig:
     #######################
 
 
-    def __check_config_section(self, data: dict, attribute_name: str, is_mandatory: bool = False) -> dict:
+    def __get_section(self, data: dict, attribute_name: str, is_mandatory: bool = False) -> dict:
         """
         Return a named top-level section from the parsed YAML or raise.
 
@@ -735,7 +868,7 @@ class ExporterConfig:
         return {}
     
 
-    def __check_attribute(self, section: dict, attribute: str, is_list: bool = False, is_mandatory: bool = False) -> Any:
+    def __get_attribute(self, section: dict, attribute: str, is_list: bool = False, is_mandatory: bool = False) -> Any:
         """
         Retrieve and validate an attribute value from a YAML section.
 
