@@ -440,30 +440,61 @@ class IssueParser:
 
     def __fetch_issues(self, jira) -> list:
         """
-        Fetch issues from Jira using the configured JQL query.
+        Fetch all issues from Jira using the configured JQL query with pagination.
 
         Executes the JQL query with the prepared field list to retrieve
-        issue data from Jira. Only requests the specific fields that have
-        been configured for export to optimize network performance.
+        all matching issue data from Jira using pagination. Makes multiple
+        API calls as needed to fetch all results, not just the default 50.
+        Only requests the specific fields that have been configured for
+        export to optimize network performance.
 
         Args:
             jira: Authenticated Jira client instance.
 
         Returns:
-            List of issue dictionaries containing the requested field data.
+            List of all issue dictionaries containing the requested field data.
 
         Raises:
             ValueError: If the JQL query fails or Jira returns an error.
         """        
         try:
-            # Call Jira to fetch issues
+            # Call Jira to fetch all issues using pagination
             field_ids = []
             for id in self.fields_to_fetch.keys():
                 field_ids.append(id)
             
             self.logger.debug(f"Fetching issues with JQL: {self.config.jql_query} and fields: {field_ids}")
-            json_result_string = jira.enhanced_jql(self.config.jql_query, fields=field_ids)
-            return json_result_string.get("issues", [])
+            
+            all_issues = []
+            next_page_token = None
+            limit = 50  # Default page size
+            total_issues = None
+            
+            while True:
+                self.logger.debug(f"Fetching issues batch with token: {next_page_token}")
+                json_result = jira.enhanced_jql(
+                    self.config.jql_query, 
+                    fields=field_ids,
+                    nextPageToken=next_page_token,
+                    limit=limit
+                )
+                
+                # Extract issues from current batch
+                current_batch = json_result.get("issues", [])
+                all_issues.extend(current_batch)
+                
+                # Get total count on first request
+                if total_issues is None:
+                    total_issues = json_result.get("total", 0)
+                    self.logger.info(f"Found {total_issues} total issues matching JQL query")
+                
+                # Check if there are more pages
+                next_page_token = json_result.get("nextPageToken")
+                if not next_page_token or len(current_batch) == 0:
+                    break
+            
+            self.logger.info(f"Successfully fetched {len(all_issues)} issues from Jira")
+            return all_issues
 
         except Exception as e:
             self.logger.critical(f"Jira request failed with JQL: {self.config.jql_query} (Original message: {e})")
