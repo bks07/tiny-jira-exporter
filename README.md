@@ -1,47 +1,34 @@
 # Tiny Jira Exporter
-This simple Python tool exports data from Jira for further processing.
-You can use it to generate a CSV file where each row represents a single JIRA issue.
+This Python tool, Tiny Jira Exporter (TJE), exports data from Jira for further processing.
+You can use it to generate a CSV file where each row represents a single Jira issue.
 
-You can specify which issues it should fetch by using different filter criteria or providing a proper name for a filter that exists and is reachable inside your Jira instance. You can also define attributes the tool returns for each extracted Jira issue.
-However, the tool's unique feature is that it allows you to extract timestamps based on the transitions of the given issues, allowing you to analyze the cycle times of your issues.
+You can specify which issues it should fetch by using different filter criteria or providing a proper name for a filter that exists and is reachable inside your Jira instance. You can also define attributes the TJE returns for each extracted Jira issue.
+However, TJE's unique feature is that it allows you to extract timestamps based on the transitions of the given issues, allowing you to analyze the cycle times of your issues.
 
 I had the idea to develop this tool since I used the Jira-to-Analytics tool from Daniel S. Vacanti (ActionableAgile(TM), https://github.com/ActionableAgile/jira-to-analytics).
 Since 2017, I have used this tool to export Jira data or analyze cycle times.
 Since I am using my own Jira Cloud instance, I got frustrated because the Jira-to-Analytics didn't seem to work correctly with Jira Cloud.
 I also needed some other features, so I wrote my own tool.
 
-The Tiny Jira Exporter uses the basic ideas of the Jira-to-Analytics tool, such as configuring via a YAML file or exporting data into a CSV file.
-However, I developed this tool from scratch since Jira-to-Analytics is written in TypeScript - for which I have no experience.
-So, I went ahead and developed this tool in Python.
-My tool's usage is also slightly different, and I will continue to add features.
+TJE uses the basic ideas of Vacanti's Jira-to-Analytics, such as configuring via a YAML file or exporting data into a CSV file.
+However, I developed TJE from scratch since Jira-to-Analytics is written in TypeScript - for which I have no experience.
+So, I went ahead and developed TJE in Python.
+TJE's usage is also slightly different, and I will continue to add features.
 Since it is open for contribution, contact me via LinkedIn to join my GitHub project if interested.
 
 ## Installation
-### Using the .EXE File
-If you are a Windows user, you can download the latest EXE file from the releases, and that's it.
-However, I don't recommend using the EXE file since I don't build it regularly.
-The Python sources are always up to date.
-
-## Using the Python Script
 Install at least Python 3.10.12 and pip.
-Clone this repository and install all required modules as specified in the file _requirements.txt__.
+Clone this repository and install all required modules as specified in the file _requirements.txt_.
 ```bash
 $ pip install -r requirements.txt
 ```
 
-## Usage
-### EXE file under Windows
-When using the EXE file, the command should look like this.
-```bash
-> .\TinyJiraExporter.exe -c ./conf/my-config.yaml -o ./export/my-output.csv
-```
-### Python Script
+## Usage and Parameters
 Call the Python script using the following code.
 ```bash
 $ python3 jira-to-analytics.py -c ./conf/my-config.yaml -o ./export/my-output.csv
 ```
 
-### Parameters
 Provide the following parameters:
 * -c - This stands for _configuration_ and must be followed by the path to the configuration YAML file you want to use.
 If you do not specify this parameter, the script will use the _default.yaml_ file inside the folder _conf_.
@@ -102,10 +89,10 @@ The least is the recommended method.
 ```yaml
 Standard Issue Fields:
     Reporter: !!bool Yes # will be exported
-    Assignee: !!bool No # not included in export
-#    Summary: !!bool Yes # not included in export
+#    Assignee: !!bool Yes # not included in export
+    Summary: !!bool No # not included in export
 ```
-The example above only exports the field _Reporter_.
+The example above only exports the field _Summary_.
 
 ### Custom Issue Fields
 ```yaml
