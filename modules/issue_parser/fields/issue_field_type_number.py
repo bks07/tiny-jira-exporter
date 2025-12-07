@@ -83,7 +83,7 @@ class IssueFieldTypeNumber(IssueFieldType):
     @data.setter
     def data(
         self,
-        value: str
+        value: float
     ) -> None:
         """
         Set numeric data from Jira API response and format for export.
@@ -105,7 +105,8 @@ class IssueFieldTypeNumber(IssueFieldType):
             The formatted value replaces periods with the configured decimal
             separator, enabling proper display in different regional formats.
         """
-        if value is None or not isinstance(value, str) or len(value) == 0:
+        if value is None or \
+            not (isinstance(value, int) or isinstance(value, float)):
             self._data = ""
             self._value = ""
         else:

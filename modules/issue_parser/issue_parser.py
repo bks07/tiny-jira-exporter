@@ -460,7 +460,8 @@ class IssueParser:
             field_ids = []
             for id in self.fields_to_fetch.keys():
                 field_ids.append(id)
-
+            
+            self.logger.debug(f"Fetching issues with JQL: {self.config.jql_query} and fields: {field_ids}")
             json_result_string = jira.enhanced_jql(self.config.jql_query, fields=field_ids)
             return json_result_string.get("issues", [])
 
@@ -529,6 +530,7 @@ class IssueParser:
             # Crawl all fields the exporter should fetch
             for id, field in self.fields_to_fetch.items():
                 field.data = raw_issue_data['fields'].get(id)
+                
                 # Export the field value to the parsed issue fields dictionary if required
                 if not field.fetch_only:
                     if field.is_custom_field:

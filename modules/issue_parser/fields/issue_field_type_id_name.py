@@ -79,7 +79,7 @@ class IssueFieldTypeIdName(IssueFieldType):
         elif not isinstance(value, dict) or \
             self.VALUE_ID_KEY not in value or \
             self.VALUE_NAME_KEY not in value:
-            raise ValueError(f"IdName field must be a dict with '{self.VALUE_ID_KEY}' and '{self.VALUE_NAME_KEY}' keys.")
+            raise ValueError(f"IdName field '{self.name}' must be a dict with '{self.VALUE_ID_KEY}' and '{self.VALUE_NAME_KEY}' keys.")
         else:
             self._data = value
             self._value_id = IssueFieldType.string_to_utf8(self._data.get(self.VALUE_ID_KEY, ""))

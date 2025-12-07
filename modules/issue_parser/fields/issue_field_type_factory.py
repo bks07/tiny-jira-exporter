@@ -3,6 +3,7 @@ import logging
 
 # Assuming your base and derived classes are defined as in the previous answer
 from modules.exporter_config.exporter_config import ExporterConfig
+from modules.issue_parser.fields.issue_field_type_option import IssueFieldTypeOption
 from .issue_field_type import IssueFieldType
 from .issue_field_type_short_text import IssueFieldTypeShortText
 from .issue_field_type_date import IssueFieldTypeDate
@@ -50,6 +51,7 @@ class IssueFieldTypeFactory:
     SCHEMA_TYPE_STATUS = "status"
     SCHEMA_TYPE_PRIORITY = "priority"
     SCHEMA_TYPE_ISSUETYPE = "issuetype"
+    SCHEMA_TYPE_OPTION = "option"
 
 
     # Mapping of the primary schema types (schema.type) to IssueField subclasses
@@ -78,6 +80,9 @@ class IssueFieldTypeFactory:
         SCHEMA_TYPE_STATUS: IssueFieldTypeIdName,
         SCHEMA_TYPE_PRIORITY: IssueFieldTypeIdName,
         SCHEMA_TYPE_ISSUETYPE: IssueFieldTypeIdName,
+        # A reference to an option value from a select list (e.g., Single Select, Multi Select custom fields).
+        # A JSON object with option details ({"id": "...", "value": "..."})
+        SCHEMA_TYPE_OPTION: IssueFieldTypeOption,
         # INFO: Not implemented so far
         # group	An Atlassian group reference.	(Not a common default field)	Group Picker
         # issuelink	A reference to an issue link object.	issuelinks	Issue Link Field

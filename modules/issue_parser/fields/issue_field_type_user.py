@@ -74,7 +74,7 @@ class IssueFieldTypeUser(IssueFieldType):
             self._data = {}
             self._value_id = ""
             self._value = ""
-            raise ValueError(f"User field must be a dict with '{self.VALUE_ID_KEY}' and '{self.VALUE_NAME_KEY}' keys.")
+            raise ValueError(f"User field '{self.name}' must be a dict with '{self.VALUE_ID_KEY}' and '{self.VALUE_NAME_KEY}' keys.")
         else:
             self._data = value
             self._value_id = IssueFieldType.string_to_utf8(self._data.get(self.VALUE_ID_KEY, ""))
