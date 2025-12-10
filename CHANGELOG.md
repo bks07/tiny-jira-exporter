@@ -9,17 +9,17 @@ This release will focus on harmonizing the loading process for the YAML config f
 
 ### Added
 
-- None.
+- Limit the returned results via "max results" using the new implementation logic
 
 ### Changed
 
 - None.
 
-## Deprecated
+### Deprecated
 
 - None.
 
-## Removed
+### Removed
 
 - None.
 
@@ -54,13 +54,14 @@ This happens dynamically as the extractor fetches the field types for each field
 - Complete documentation modernization from Sphinx-style to Google-style docstrings (SKSD-64)
 - Enhanced exporter.py with enterprise-grade documentation and error handling (SKSD-64)
 
-## Deprecated
+### Deprecated
 
 - None.
 
-## Removed
+### Removed
 
 - I did not compile the code - there will be no Windows executable in future
+- Limiting returned results via "Max results" no more available
 
 ### Fixed
 
@@ -88,11 +89,11 @@ However, in the end, after publishing, it turned out that TJE breaks when parsin
 - Using 'atlassian-pyton-api' module instead of 'JIRA' module
 - Date formatting now uses 'datetime' and 'pytz' modules
 
-## Deprecated
+### Deprecated
 
 - None.
 
-## Removed
+### Removed
 
 - None.
 
@@ -116,11 +117,11 @@ First release.
 
 - Changed sort order of standard issue fields within CSV export file so that it makes more sense
 
-## Deprecated
+### Deprecated
 
 - None.
 
-## Removed
+### Removed
 
 - None.
 

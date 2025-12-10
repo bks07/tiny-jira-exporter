@@ -3,18 +3,12 @@ This Python tool, Tiny Jira Exporter (TJE), exports data from Jira for further p
 You can use it to generate a CSV file where each row represents a single Jira issue.
 
 You can specify which issues it should fetch by using different filter criteria or providing a proper name for a filter that exists and is reachable inside your Jira instance. You can also define attributes the TJE returns for each extracted Jira issue.
-However, TJE's unique feature is that it allows you to extract timestamps based on the transitions of the given issues, allowing you to analyze the cycle times of your issues.
+However, TJE's unique feature is that it allows you to extract timestamps based on the transitions of the given issues, allowing you to analyze the lead times and cycle times of your Jira issues.
 
-I had the idea to develop this tool since I used the Jira-to-Analytics tool from Daniel S. Vacanti (ActionableAgile(TM), https://github.com/ActionableAgile/jira-to-analytics).
-Since 2017, I have used this tool to export Jira data or analyze cycle times.
-Since I am using my own Jira Cloud instance, I got frustrated because the Jira-to-Analytics didn't seem to work correctly with Jira Cloud.
-I also needed some other features, so I wrote my own tool.
-
-TJE uses the basic ideas of Vacanti's Jira-to-Analytics, such as configuring via a YAML file or exporting data into a CSV file.
-However, I developed TJE from scratch since Jira-to-Analytics is written in TypeScript - for which I have no experience.
-So, I went ahead and developed TJE in Python.
-TJE's usage is also slightly different, and I will continue to add features.
-Since it is open for contribution, contact me via LinkedIn to join my GitHub project if interested.
+You may also be interested in the following articles that demonstrate how to make use of the script:
+* [Easy Risk Management with Jira, Confluence, and Excel](https://medium.com/agileinsider/easy-risk-management-with-jira-confluence-and-excel-c7b2dd13f848)
+* [Whisky, Kanban, and Jira — A Perfect Match](https://medium.com/agileinsider/whisky-kanban-and-jira-a-perfect-match-002f9f5eabfc)
+Find additional resources like Excel files for evaluation and example configuration files under [bks07/tje-resources](https://github.com/bks07/tje-resources)
 
 ## Installation
 Install at least Python 3.10.12 and pip.
@@ -35,7 +29,7 @@ If you do not specify this parameter, the script will use the _default.yaml_ fil
 * -o - This stands for _output_ and must be followed by the path to the file where you want to write the CSV data.
 If you do not specify this parameter, the script will use the _default.csv_ csv file inside the folder _export_.
 * -l - This stands for logging; you can define the values debug, info, warning, error, critical, and off.
-When logging is activated, there is no other output on the console than the logging messages.
+When logging is activated, TJE creates an additional .log file besides the CSV file.
 
 Ensure that the paths are valid and that the config file exists.
 Any further configuration is done inside the YAML file.
@@ -52,7 +46,8 @@ Leaving these values empty, commenting them out, or removing them from the file 
 
 ### Search Criteria
 This section allows you to use a predefined filter or set up a simple one by providing some values.
-I always recommend setting up a proper filter inside Jira. If a filter exists, use the exact name inside the YAML file.
+I always recommend setting up a proper filter inside Jira.
+If a filter exists, use the exact name inside the YAML file.
 However, make sure that the user you are connecting with in the script has the proper rights to access the filter.
 
 If you don't want to use a Jira filter, comment out the attribute _"Filter"_.
@@ -173,10 +168,18 @@ You should leave it as it is.
 However, all of the values are optional here.
 You can change it or comment them out if you like.
 
+## Personal Note
+I had the idea to develop this tool since I used the Jira-to-Analytics tool from Daniel S. Vacanti (ActionableAgile(TM), https://github.com/ActionableAgile/jira-to-analytics).
+Since 2017, I have used this tool to export Jira data or analyze cycle times.
+Since I am using my own Jira Cloud instance, I got frustrated because the Jira-to-Analytics didn't seem to work correctly with Jira Cloud.
+I also needed some other features, so I wrote my own tool.
+
+TJE uses the basic ideas of Vacanti's Jira-to-Analytics, such as configuring via a YAML file or exporting data into a CSV file.
+However, I developed TJE from scratch since Jira-to-Analytics is written in TypeScript - for which I have no experience.
+So, I went ahead and developed TJE in Python.
+TJE's usage is also slightly different, and I will continue to add features.
+Since it is open for contribution, contact me via LinkedIn to join my GitHub project if interested.
+
 ## Support
 This script is maintained by [Boris Karl Schlein](https://github.com/bks07).
 You can also find me on [LinkedIn](https://www.linkedin.com/in/boriskarlschlein/) and [Medium](https://medium.com/@boris-karl-schlein).
-
-You may also be interested in the following articles that demonstrate how to make use of the script:
-* [Easy Risk Management with Jira, Confluence, and Excel](https://medium.com/agileinsider/easy-risk-management-with-jira-confluence-and-excel-c7b2dd13f848)
-* [Whisky, Kanban, and Jira — A Perfect Match](https://medium.com/agileinsider/whisky-kanban-and-jira-a-perfect-match-002f9f5eabfc)
