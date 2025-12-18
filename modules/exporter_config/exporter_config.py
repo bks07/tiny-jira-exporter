@@ -46,22 +46,33 @@ class ExporterConfig:
     YAML__SEARCH_CRITERIA__EXCLUDE_CREATED_DATE = "Exclude Created Date"
     YAML__SEARCH_CRITERIA__EXCLUDE_RESOLVED_DATE = "Exclude Resolved Date"
     YAML__STANDARD_FIELDS = "Standard Issue Fields"
-    YAML__CUSTOM_FIELDS = "Custom Issue Fields"
-    YAML__WORKFLOW = "Workflow"
+    
+    YAML__SPECIAL_FIELDS = "Special Issue Fields"
     YAML__MANDATORY = "Mandatory"
     YAML__MANDATORY__FLAGGED = "Flagged Field ID"
-    YAML__MISC = "Misc"
-    YAML__MISC__CSV_SEPARATOR = "CSV Separator"
-    YAML__MISC__STANDARD_FIELD_PREFIX = "Standard Field Prefix"
-    YAML__MISC__CUSTOM_FIELD_PREFIX = "Custom Field Prefix"
-    YAML__MISC__ISSUE_FIELD_ID_POSTFIX = "Issue Field ID Postfix"
-    YAML__MISC__STATUS_CATEGORY_PREFIX = "Status Category Prefix"
+
+    YAML__CUSTOM_FIELDS = "Custom Issue Fields"
+
+    YAML__WORKFLOW = "Workflow"
+
+    YAML__DATE_TIME = "Date and Time Formatting"
     YAML__MISC__TIME_ZONE = "Time Zone"
     YAML__MISC__DATE_FORMAT = "Date Format"
     YAML__MISC__DATETIME_OPTION = "DateTime Option"
     YAML__MISC__DATETIME_FORMAT = "DateTime Format"
+
+    YAML__NUMERIC = "Numeric Formatting"
     YAML__MISC__DECIMAL_SEPARATOR = "Decimal Separator"
+
+    YAML__MISC = "Misc"
+    YAML__CSV = "CSV Formatting"
+    YAML__MISC__CSV_SEPARATOR = "CSV Separator"
+    YAML__MISC__STANDARD_FIELD_PREFIX = "Standard Field Prefix"
+    YAML__MISC__CUSTOM_FIELD_PREFIX = "Custom Field Prefix"
     YAML__MISC__EXPORT_VALUE_IDS = "Export Value IDs"
+    YAML__MISC__ISSUE_FIELD_ID_POSTFIX = "Issue Field ID Postfix"
+    YAML__MISC__STATUS_CATEGORY_PREFIX = "Status Category Prefix"
+
 
     # Issue field display names - Always exported
     ISSUE_FIELD_NAME__ISSUE_KEY = "Key"

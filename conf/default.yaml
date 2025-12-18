@@ -31,11 +31,6 @@ Search Criteria:
     # Obsolete if a filter is defined.
     Exclude Resolved Date: 2023-01-01
 
-# Mandatory attributes to define
-Mandatory:
-    Parent Link Field ID: customfield_10018 # Make sure that this is the correct id for the custom field 'Parent Link'
-    Flagged Field ID: customfield_10021 # Make sure that this is the correct id for the custom field 'Flagged'
-
 # Define which standard fields should the export contain
 Standard Issue Fields:
     Type: !!bool Yes
@@ -56,11 +51,27 @@ Standard Issue Fields:
     Fixed Versions: !!bool Yes
     Affected Versions: !!bool Yes
 
+# Define special fields that require their custom field IDs
+Special Issue Fields:
+    Parent Link Field ID: customfield_10018 # Make sure that this is the correct id for the custom field 'Parent Link'
+    Flagged Field ID: customfield_10021 # Make sure that this is the correct id for the custom field 'Flagged'
+
 # Define which custom fields the export should contail by mapping field names to custom field IDs
 # Make sure that the IDs are correct. You can check this by exporting a single issue to CSV
 # and checking the header line of the resulting file.
 Custom Issue Fields:
     story-point-estimate: customfield_10016
+
+# Define how date and time values should be formatted inside the CSV
+Date and Time Formatting:
+    Time Zone: Europe/Berlin # Set a time zone accoring to pytz.all_timezones, e.g. Europe/Berlin, US/Pacific, Asia/Tokyo. Default is UTC.
+    Date Format: "%Y-%m-%d" # Choose a date format according to Python's datetime formatting options. Default is "%Y-%m-%d".
+    DateTime Option: Date # Choose between 'Date', 'Seconds' and 'Milliseconds', default is 'Date'.
+    DateTime Format: "%Y-%m-%d %H:%M:%S" # Choose a datetime format according to Python's datetime formatting options. Default is "%Y-%m-%d %H:%M:%S".
+
+# Define how numeric values should be formatted inside the CSV
+Numeric Formatting:
+    Decimal Separator: Comma # Choose between 'Comma' and 'Point', default is 'Point'
 
 # Describe the workflow. Each step can be mapped to either a single JIRA
 # status, or a list of statuses that will be treated as equivalent
@@ -75,7 +86,7 @@ Workflow:
         - Closed
 
 # Additional settings that are optional
-Misc:
+CSV Formating:
     CSV Separator: Comma # Choose between 'Comma' and 'Semicolon', default is Comma
     Standard Field Prefix: "std::" # Recommended to avoid confusion with other fields
     Custom Field Prefix: "cst::" # Recommended to avoid confusion with other fields
@@ -86,8 +97,3 @@ Misc:
     Export Value IDs: !!bool No 
     Issue Field ID Postfix: "::id" # Postfix to append to field IDs when exporting them, e.g. "std::Priority::id"
     Status Category Prefix: "cat::" # Recommended to avoid confusion whith other fields
-    Time Zone: Europe/Berlin # Set a time zone accoring to pytz.all_timezones, e.g. Europe/Berlin, US/Pacific, Asia/Tokyo. Default is UTC.
-    Date Format: "%Y-%m-%d" # Choose a date format according to Python's datetime formatting options. Default is "%Y-%m-%d".
-    DateTime Option: Date # Choose between 'Date', 'Seconds' and 'Milliseconds', default is 'Date'.
-    DateTime Format: "%Y-%m-%d %H:%M:%S" # Choose a datetime format according to Python's datetime formatting options. Default is "%Y-%m-%d %H:%M:%S".
-    Decimal Separator: Comma # Choose between 'Comma' and 'Point', default is 'Point'

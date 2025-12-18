@@ -9,7 +9,7 @@ You may also be interested in the following articles that demonstrate how to mak
 * [Easy Risk Management with Jira, Confluence, and Excel](https://medium.com/agileinsider/easy-risk-management-with-jira-confluence-and-excel-c7b2dd13f848)
 * [Whisky, Kanban, and Jira — A Perfect Match](https://medium.com/agileinsider/whisky-kanban-and-jira-a-perfect-match-002f9f5eabfc)
 
-Find additional resources like Excel files for evaluation and example configuration files under [bks07/tje-resources](https://github.com/bks07/tje-resources)
+Find additional resources like Excel files for evaluation and example configuration files under [bks07/tje-resources](https://github.com/bks07/tje-resources).
 
 ## Installation
 Install at least Python 3.10.12 and pip.
